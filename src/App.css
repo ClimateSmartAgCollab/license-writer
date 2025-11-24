@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+/* Optional: small custom rules (keep minimal when using Tailwind utilities) */
+
+.read-the-docs {
+  color: #888;
+}
