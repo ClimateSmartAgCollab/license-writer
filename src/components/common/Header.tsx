@@ -11,21 +11,21 @@ export default function Header({
   homepageUrl = "https://drt-test.canadacentral.cloudapp.azure.com/"
 }: HeaderProps) {
   return (
-    <header className="flex items-center sticky bg-[var(--drt-green)] text-white pb-12 pl-6 w-full border-b-[3px] border-b-[var(--drt-green-dark)]">
+    <header className="flex items-center sticky bg-[var(--drt-green)] text-white pb-6 lg:pb-12 pl-3 lg:pl-6 pr-3 lg:pr-6 w-full border-b-[3px] border-b-[var(--drt-green-dark)]">
       <a
         href={homepageUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="transition-opacity hover:opacity-80 cursor-pointer"
+        className="transition-opacity hover:opacity-80 cursor-pointer flex-shrink-0"
         aria-label="Go to homepage"
       >
         <img
           src={drtLogo}
-          className="h-32 w-32 mr-8 inline-block"
+          className="h-16 w-16 lg:h-32 lg:w-32 mr-3 lg:mr-8 inline-block"
           alt="DRT logo"
         />
       </a>
-      <h1 className="text-4xl font-semibold">{title}</h1>
+      <h1 className="text-lg lg:text-4xl font-semibold truncate">{title}</h1>
     </header>
   );
 }

@@ -7,7 +7,7 @@ function App() {
   return (
     <>
       <Header />
-      <main className="p-12 flex flex-col gap-10">
+      <main className="p-4 lg:p-12 flex flex-col gap-6 lg:gap-10">
         <LicenseFileUpload />
         <TemplateFileUpload />
       </main>
