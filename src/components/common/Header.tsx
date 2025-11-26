@@ -1,14 +1,13 @@
 import drtLogo from "@/assets/DRT_logo.png";
 
-
 interface HeaderProps {
   title?: string;
   homepageUrl?: string;
 }
 
-export default function Header({ 
+export default function Header({
   title = "License Template Builder",
-  homepageUrl = "https://drt-test.canadacentral.cloudapp.azure.com/"
+  homepageUrl = "https://drt-test.canadacentral.cloudapp.azure.com/",
 }: HeaderProps) {
   return (
     <header className="flex items-center sticky bg-[var(--drt-green)] text-white pb-6 lg:pb-12 pl-3 lg:pl-6 pr-3 lg:pr-6 w-full border-b-[3px] border-b-[var(--drt-green-dark)]">
@@ -29,4 +28,3 @@ export default function Header({
     </header>
   );
 }
-
