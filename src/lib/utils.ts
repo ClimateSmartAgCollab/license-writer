@@ -200,7 +200,7 @@ export function calculateSchemaLevels(
   currentLevel: number = 1
 ): number {
   if (!ocaPackage?.oca_bundle?.bundle?.capture_base) {
-    return currentLevel;
+    return 0;
   }
 
   const captureBase = ocaPackage.oca_bundle.bundle.capture_base;
@@ -210,28 +210,88 @@ export function calculateSchemaLevels(
 
   // Prevent circular references
   if (schemaDigest && visitedDigests.has(schemaDigest)) {
-    return currentLevel;
+    return currentLevel - 1; 
   }
 
   if (schemaDigest) {
     visitedDigests.add(schemaDigest);
   }
 
-  let maxLevel = currentLevel;
-
-  const hasReferences = Object.values(attributes).some(
-    (attrType) => {
-      const typeStr = String(attrType);
-      return typeStr === 'Reference' || typeStr === 'Array[Reference]' || typeStr.includes('Reference');
+  // Find all "refs:" references in attributes
+  const refsInAttributes: string[] = [];
+  Object.values(attributes).forEach((attrValue) => {
+    if (typeof attrValue === "string" && attrValue.startsWith("refs:")) {
+      const refDigest = attrValue.replace("refs:", "");
+      refsInAttributes.push(refDigest);
     }
-  );
+  });
 
-  if (hasReferences || dependencies.length > 0) {
-    const nextLevel = currentLevel + 1;
-    maxLevel = Math.max(maxLevel, nextLevel);
+  if (refsInAttributes.length === 0 && dependencies.length === 0) {
+    return currentLevel;
   }
 
-  return maxLevel;
+  let maxDepth = currentLevel;
+
+  const dependencyMap = new Map<string, any>();
+  (dependencies as any[]).forEach((dep) => {
+    if (typeof dep === "string") {
+      dependencyMap.set(dep, null);
+    } else if (dep && typeof dep === "object") {
+      const depDigest = (dep as any).d || (dep as any).capture_base?.d;
+      if (depDigest) {
+        dependencyMap.set(depDigest, dep);
+      }
+    }
+  });
+
+  const allRefs = new Set([...refsInAttributes]);
+  
+  (dependencies as any[]).forEach((dep) => {
+    if (dep && typeof dep === "object" && (dep as any).d) {
+      allRefs.add((dep as any).d);
+    }
+  });
+
+  for (const refDigest of allRefs) {
+    const depObj = dependencyMap.get(refDigest);
+    
+      if (depObj) {
+        const packageType = 
+          (depObj as any).type || 
+          ocaPackage.type || 
+          "oca_package/1.0"; 
+        
+        const depPackage: OCAPackage = {
+          d: depObj.d || refDigest,
+          type: packageType,
+          oca_bundle: {
+            v: depObj.v || "",
+            bundle: depObj.bundle || {
+              v: depObj.v || "",
+              d: depObj.d || refDigest,
+              capture_base: depObj.capture_base || (depObj as any).capture_base,
+              overlays: depObj.overlays || {},
+            },
+            dependencies: depObj.dependencies || [],
+          },
+        };
+
+      const childDepth = calculateSchemaLevels(
+        depPackage,
+        new Set(visitedDigests),
+        currentLevel + 1
+      );
+      maxDepth = Math.max(maxDepth, childDepth);
+    } else {
+      maxDepth = Math.max(maxDepth, currentLevel + 1);
+    }
+  }
+
+  if (refsInAttributes.length > 0 && maxDepth === currentLevel) {
+    maxDepth = currentLevel + 1;
+  }
+
+  return maxDepth;
 }
 
 
