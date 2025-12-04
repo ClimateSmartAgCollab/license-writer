@@ -13,6 +13,12 @@ interface FileUploadProps {
   buttonText?: string;
   onFileSelect?: (file: File | null) => void;
   accept?: string;
+  selectedFileName?: string | null;
+  selectedFileInfo?: {
+    schemaLevels?: number;
+    successMessage?: string;
+    nextStepMessage?: string;
+  } | null;
 }
 
 const HeaderSection = ({
@@ -35,30 +41,82 @@ const UploadArea = ({
   description,
   uploadHint = DEFAULT_UPLOAD_HINT,
   isDragActive,
+  selectedFileName,
+  selectedFileInfo,
 }: {
   uploadIcon: React.ReactNode;
   description: string;
   uploadHint?: string;
   isDragActive?: boolean;
-}) => (
-  <div className="flex flex-col items-center justify-center">
-    <div className="flex items-center justify-center text-[var(--drt-green-dark)] text-4xl lg:text-6xl p-1 mr-2">
-      {uploadIcon}
+  selectedFileName?: string | null;
+  selectedFileInfo?: {
+    schemaLevels?: number;
+    successMessage?: string;
+    nextStepMessage?: string;
+  } | null;
+}) => {
+  // Show file info if file is selected and info is provided
+  if (selectedFileName && selectedFileInfo) {
+    return (
+      <div className="flex flex-col items-center justify-center w-full h-full py-6">
+        <div className="flex items-center justify-center mb-6">
+          <div className="rounded-full bg-[var(--drt-green)] p-4">
+            <svg
+              className="w-12 h-12 lg:w-16 lg:h-16 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          </div>
+        </div>
+        
+        <h3 className="text-xl lg:text-2xl font-bold text-[var(--drt-green-dark)] text-center mb-4 px-2 break-all">
+          {selectedFileName}
+        </h3>
+        
+        {selectedFileInfo.schemaLevels !== undefined && (
+          <p className="text-base lg:text-lg text-[var(--drt-green-dark)] text-center mb-6 px-2">
+            <strong>Schema levels:</strong> {selectedFileInfo.schemaLevels}
+          </p>
+        )}
+        
+        {selectedFileInfo.nextStepMessage && (
+          <p className="text-sm lg:text-base text-[var(--drt-green-dark)] text-center px-2 max-w-md">
+            {selectedFileInfo.nextStepMessage}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  // Default upload UI
+  return (
+    <div className="flex flex-col items-center justify-center">
+      <div className="flex items-center justify-center text-[var(--drt-green-dark)] text-4xl lg:text-6xl p-1 mr-2">
+        {uploadIcon}
+      </div>
+      <p className="text-sm lg:text-base text-[var(--drt-green-dark)] text-center mt-4 mb-1 w-full px-2 lg:px-0">
+        {description}
+      </p>
+      <p
+        className={`text-xs lg:text-sm text-center w-full px-2 lg:px-0 ${
+          isDragActive
+            ? "text-[var(--drt-green)] font-semibold"
+            : "text-[var(--drt-green-dark)]"
+        }`}
+      >
+        {isDragActive ? "Drop the file here" : uploadHint}
+      </p>
     </div>
-    <p className="text-sm lg:text-base text-[var(--drt-green-dark)] text-center mt-4 mb-1 w-full px-2 lg:px-0">
-      {description}
-    </p>
-    <p
-      className={`text-xs lg:text-sm text-center w-full px-2 lg:px-0 ${
-        isDragActive
-          ? "text-[var(--drt-green)] font-semibold"
-          : "text-[var(--drt-green-dark)]"
-      }`}
-    >
-      {isDragActive ? "Drop the file here" : uploadHint}
-    </p>
-  </div>
-);
+  );
+};
 
 function FileUpload({
   title,
@@ -69,6 +127,8 @@ function FileUpload({
   buttonText = DEFAULT_BUTTON_TEXT,
   onFileSelect,
   accept,
+  selectedFileName,
+  selectedFileInfo,
 }: FileUploadProps) {
   // Configure onDrop handler
   const onDrop = useCallback(
@@ -133,6 +193,8 @@ function FileUpload({
             description={description}
             uploadHint={uploadHint}
             isDragActive={isDragActive}
+            selectedFileName={selectedFileName}
+            selectedFileInfo={selectedFileInfo}
           />
         </div>
       </div>
