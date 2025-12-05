@@ -44,19 +44,14 @@ export function extractDetailedAttributes(data: OCAPackage | null): AttributeInf
     });
   }
 
-  // Get descriptions from entry overlays
+  // Get descriptions from FormOverlay in ADC extensions
   const attributeDescriptions: Record<string, string> = {};
-  if (overlays?.entry && Array.isArray(overlays.entry)) {
-    overlays.entry.forEach((entryOverlay) => {
-      if (entryOverlay.attribute_entries) {
-        Object.keys(entryOverlay.attribute_entries).forEach((attrName) => {
-          const entries = entryOverlay.attribute_entries[attrName];
-          if (entries && typeof entries === 'object') {
-            // Get description from entries (usually in 'description' key)
-            const description = entries['description'] || entries['d'] || '';
-            if (description && typeof description === 'string') {
-              attributeDescriptions[attrName] = description;
-            }
+  if (data.extensions?.adc) {
+    Object.values(data.extensions.adc).forEach((adcExtension) => {
+      if (adcExtension.overlays?.form && Array.isArray(adcExtension.overlays.form)) {
+        adcExtension.overlays.form.forEach((formOverlay) => {
+          if (formOverlay.description && typeof formOverlay.description === 'object') {
+            Object.assign(attributeDescriptions, formOverlay.description);
           }
         });
       }
