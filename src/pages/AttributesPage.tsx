@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/App";
 import { extractDetailedAttributes, type AttributeInfo } from "@/lib/utils";
@@ -12,7 +12,6 @@ function AttributesPage() {
   const editorRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedAttributes, setExpandedAttributes] = useState<Set<string>>(new Set());
-  const [templateContent, setTemplateContent] = useState("");
   const [selectedAttribute, setSelectedAttribute] = useState<AttributeInfo | null>(null);
 
   const attributes = extractDetailedAttributes(rawJsonData);
@@ -68,13 +67,185 @@ function AttributesPage() {
     setExpandedAttributes(newExpanded);
   };
 
-  const insertAttribute = (attrName: string, isNested = false, parentName?: string) => {
-    const placeholder = isNested && parentName
-      ? `{{ ${parentName}.${attrName} }}`
-      : `{{ ${attrName} }}`;
+  // Helper function to get editor text content
+  const getEditorText = (editor: HTMLDivElement): string => {
+    return editor.innerText || editor.textContent || '';
+  };
+
+  // Helper function to get cursor position in editor text
+  const getCursorPosition = (editor: HTMLDivElement, range: Range | null): number => {
+    if (!range) return getEditorText(editor).length;
+
+    const editorText = editor.innerText || '';
     
+    const walker = document.createTreeWalker(
+      editor,
+      NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
+      {
+        acceptNode: (node) => {
+          if (node.nodeType === Node.TEXT_NODE) {
+            return NodeFilter.FILTER_ACCEPT;
+          }
+          if (node.nodeType === Node.ELEMENT_NODE && node.nodeName === 'BR') {
+            return NodeFilter.FILTER_ACCEPT;
+          }
+          return NodeFilter.FILTER_SKIP;
+        }
+      }
+    );
+
+    let cursorPos = 0;
+    let node: Node | null = null;
+    let foundCursor = false;
+
+    while ((node = walker.nextNode())) {
+      if (node === range.startContainer) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          cursorPos += range.startOffset;
+          foundCursor = true;
+          break;
+        } else if (node.nodeName === 'BR') {
+          // Cursor is at a BR element - position is right after the BR
+          // BR adds one character in innerText, so add 1 to position
+          cursorPos += 1;
+          foundCursor = true;
+          break;
+        }
+      } else if (node.contains && node.contains(range.startContainer)) {
+        // The cursor is inside this node or one of its children
+        if (node.nodeType === Node.TEXT_NODE) {
+          // If cursor is in a child text node, we need to find it
+          // For now, add the full length - this will be approximate
+          cursorPos += (node.textContent || '').length;
+          foundCursor = true;
+          break;
+        } else if (node.nodeName === 'BR') {
+          // Cursor is after a BR element that contains the startContainer
+          cursorPos += 1;
+          foundCursor = true;
+          break;
+        }
+      }
+      
+      if (node.nodeType === Node.TEXT_NODE) {
+        cursorPos += (node.textContent || '').length;
+      } else if (node.nodeName === 'BR') {
+        cursorPos += 1; // BR adds one character in innerText
+      }
+    }
+    
+    // If we still haven't found the cursor, try a different approach
+    // Check if the range is positioned right after a BR or between nodes
+    if (!foundCursor && range.startContainer) {
+      // If the range is positioned between nodes (common after BR tags)
+      if (range.startContainer.nodeType === Node.TEXT_NODE) {
+        // We should have found it above, but if not, calculate from text
+        const textBefore = editorText.substring(0, Math.min(cursorPos, editorText.length));
+        return textBefore.length + range.startOffset;
+      } else if (range.startContainer.nodeName === 'BR' || 
+                 (range.startContainer.parentNode && range.startContainer.parentNode.nodeName === 'BR')) {
+        // Cursor is at or after a BR - find the BR position
+        const brWalker = document.createTreeWalker(
+          editor,
+          NodeFilter.SHOW_ELEMENT,
+          { acceptNode: (n) => n.nodeName === 'BR' ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP }
+        );
+        let brPos = 0;
+        let brNode: Node | null = null;
+        while ((brNode = brWalker.nextNode())) {
+          if (brNode === range.startContainer || brNode.contains(range.startContainer)) {
+            break;
+          }
+          brPos += 1;
+        }
+        // Count text before this BR
+        const textWalker = document.createTreeWalker(
+          editor,
+          NodeFilter.SHOW_TEXT,
+          null
+        );
+        let textPos = 0;
+        let textNode: Node | null = null;
+        while ((textNode = textWalker.nextNode())) {
+          if (textNode.compareDocumentPosition(range.startContainer) & Node.DOCUMENT_POSITION_FOLLOWING) {
+            break;
+          }
+          textPos += (textNode.textContent || '').length;
+        }
+        return textPos + brPos;
+      }
+    }
+
+    // If we didn't find the cursor in the walker, try to calculate it differently
+    if (!foundCursor && range.startContainer.nodeType === Node.TEXT_NODE) {
+      // Fallback: calculate position by walking from the start
+      const textBefore = editorText.substring(0, Math.min(cursorPos, editorText.length));
+      return textBefore.length;
+    }
+
+    return cursorPos;
+  };
+
+  // Helper function to set cursor at a specific text position
+  const setCursorAtPosition = (editor: HTMLDivElement, position: number, selection: Selection | null): void => {
+    const walker = document.createTreeWalker(
+      editor,
+      NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
+      {
+        acceptNode: (node) => {
+          if (node.nodeType === Node.TEXT_NODE) {
+            return NodeFilter.FILTER_ACCEPT;
+          }
+          if (node.nodeType === Node.ELEMENT_NODE && node.nodeName === 'BR') {
+            return NodeFilter.FILTER_ACCEPT;
+          }
+          return NodeFilter.FILTER_SKIP;
+        }
+      }
+    );
+
+    let currentPos = 0;
+    let targetNode: Node | null = null;
+    let targetOffset = 0;
+
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      
+      if (node.nodeType === Node.TEXT_NODE) {
+        const nodeLength = (node.textContent || '').length;
+        if (currentPos + nodeLength >= position) {
+          targetNode = node;
+          targetOffset = position - currentPos;
+          break;
+        }
+        currentPos += nodeLength;
+      } else if (node.nodeName === 'BR') {
+        if (currentPos >= position) {
+          targetNode = node;
+          targetOffset = 0;
+          break;
+        }
+        currentPos += 1;
+      }
+    }
+
+    if (targetNode && selection) {
+      const newRange = document.createRange();
+      if (targetNode.nodeType === Node.TEXT_NODE) {
+        newRange.setStart(targetNode, Math.min(targetOffset, targetNode.textContent?.length || 0));
+      } else {
+        // For BR elements, insert before it
+        newRange.setStartBefore(targetNode);
+      }
+      newRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+      editor.focus();
+    }
+  };
+
+  const insertAttribute = (attrName: string, isNested = false, parentName?: string) => {
     if (editorRef.current) {
-      // Ensure the editor is focused first
       editorRef.current.focus();
       
       const selection = window.getSelection();
@@ -127,22 +298,166 @@ function AttributesPage() {
         selection?.addRange(range);
       }
       
-      range.deleteContents();
-      const textNode = document.createTextNode(placeholder);
-      range.insertNode(textNode);
-      range.setStartAfter(textNode);
-      range.collapse(true);
-      selection?.removeAllRanges();
-      selection?.addRange(range);
+      if (isNested && parentName) {
+        const editor = editorRef.current;
+        // Always get the current selection to ensure we have the latest cursor position
+        // This is important because after auto-positioning, the range might have changed
+        const currentSelection = window.getSelection();
+        let currentRange: Range | null = null;
+        
+        if (currentSelection && currentSelection.rangeCount > 0) {
+          const selRange = currentSelection.getRangeAt(0);
+          // Verify the selection is within the editor
+          if (editor.contains(selRange.commonAncestorContainer)) {
+            currentRange = selRange;
+          }
+        }
+        
+        // Fallback to the passed range if no valid current selection
+        if (!currentRange) {
+          currentRange = range;
+        }
+        
+        const editorText = getEditorText(editor);
+        const cursorPos = getCursorPosition(editor, currentRange);
+
+        // Escape special characters for regex
+        const escParent = parentName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const escAttr = attrName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        // Find all for loops for this parent
+        const loopRegex = new RegExp(
+          `{%\\s*for\\s+${escParent}\\s+in\\s+${escParent}\\s*%}([\\s\\S]*?){%\\s*endfor\\s*%}`,
+          'g'
+        );
+
+        let match: RegExpExecArray | null;
+        let cursorInsideLoop = false;
+
+        // Check if cursor is inside any existing loop for this parent
+        while ((match = loopRegex.exec(editorText)) !== null) {
+          const loopStart = match.index;
+          const loopEnd = loopStart + match[0].length;
+
+          // Find where the opening tag ends and closing tag begins
+          const openingTag = match[0].match(/{%\s*for\s+[^%]+%}/)?.[0] || '';
+          const closingTag = match[0].match(/{%\s*endfor\s*%}/)?.[0] || '';
+
+          const contentStart = loopStart + openingTag.length;
+          const contentEnd = loopEnd - closingTag.length;
+
+          // Check if cursor is between {% for %} and {% endfor %}
+          // Use a more lenient check - cursor should be anywhere in the loop content area
+          // Account for the fact that cursor might be on a new line (after BR tag)
+          const tolerance = 10; // Increased tolerance to handle newlines and whitespace
+          
+          // Check if cursor position is within the loop content bounds
+          // Allow cursor to be anywhere from just after {% for %} to just before {% endfor %}
+          const isInRange = cursorPos >= contentStart - tolerance && cursorPos <= contentEnd + tolerance;
+          
+          if (isInRange) {
+            cursorInsideLoop = true;
+
+            // Check if this exact attribute already exists in this loop
+            const attrPattern = new RegExp(
+              `{{\\s*${escParent}\\.${escAttr}\\s*}}`,
+              'i'
+            );
+
+            if (attrPattern.test(match[1])) {
+              // Attribute already exists, just move cursor to it
+              const attrMatch = match[1].match(attrPattern);
+              if (attrMatch) {
+                const attrIndex = match[1].indexOf(attrMatch[0]);
+                const attrPos = contentStart + attrIndex + attrMatch[0].length;
+                setCursorAtPosition(editor, attrPos, selection);
+              }
+              return;
+            }
+
+            // Insert the attribute at current cursor position inside the loop
+            range?.deleteContents();
+
+            const insertText = `{{ ${parentName}.${attrName} }}`;
+            const textNode = document.createTextNode(insertText);
+            range?.insertNode(textNode);
+            
+            // Move cursor to the end of the inserted attribute
+            // Position cursor at the end of the text node content to match cursor position calculation
+            const newRange = document.createRange();
+            newRange.setStart(textNode, textNode.textContent?.length || 0);
+            newRange.collapse(true);
+
+            selection?.removeAllRanges();
+            selection?.addRange(newRange);
+            editor.focus();
+            return;
+          }
+        }
+
+        // Cursor is NOT inside any existing loop for this parent
+        // Create a new for loop block at cursor position
+        if (!cursorInsideLoop) {
+          range?.deleteContents();
+
+          const loopLines = [
+            `{% for ${parentName} in ${parentName} %}`,
+            `  {{ ${parentName}.${attrName} }}`,
+            `{% endfor %}`
+          ];
+
+          const fragment = document.createDocumentFragment();
+          let attributeTextNode: Text | null = null;
+          
+          loopLines.forEach((line, index) => {
+            const textNode = document.createTextNode(line);
+            fragment.appendChild(textNode);
+            
+            // Remember the text node containing the attribute (second line)
+            if (index === 1) {
+              attributeTextNode = textNode;
+            }
+            
+            if (index < loopLines.length - 1) {
+              fragment.appendChild(document.createElement('br'));
+            }
+          });
+
+          range?.insertNode(fragment);
+          
+          // Move cursor to the end of the inserted attribute
+          const newRange = document.createRange();
+          if (attributeTextNode !== null) {
+            // Position cursor at the end of the attribute text node content
+            const textLength = (attributeTextNode as Text).textContent?.length || 0;
+            newRange.setStart(attributeTextNode as Text, textLength);
+          } else {
+            // Fallback: set after the fragment's last child
+            newRange.setStartAfter(fragment.lastChild!);
+          }
+          newRange.collapse(true);
+
+          selection?.removeAllRanges();
+          selection?.addRange(newRange);
+          editor.focus();
+          return;
+        }
+      } else {
+        // Non-nested attribute - simple insertion
+        range?.deleteContents();
+        const textNode = document.createTextNode(`{{ ${attrName} }}`);
+        range?.insertNode(textNode);
+        
+        // Move cursor to the end of the inserted attribute
+        const newRange = document.createRange();
+        newRange.setStart(textNode, textNode.textContent?.length || 0);
+        newRange.collapse(true);
+
+        selection?.removeAllRanges();
+        selection?.addRange(newRange);
+      }
       
       editorRef.current.focus();
-      updateTemplateContent();
-    }
-  };
-
-  const updateTemplateContent = () => {
-    if (editorRef.current) {
-      setTemplateContent(editorRef.current.innerHTML);
     }
   };
 
@@ -154,13 +469,11 @@ function AttributesPage() {
     
     if (!editorRef.current) return;
     
-    // Ensure the editor is focused
     editorRef.current.focus();
     
     // Undo and Redo don't require a selection - they work on the editor's history
     if (command === "undo" || command === "redo") {
       document.execCommand(command, false);
-      updateTemplateContent();
       editorRef.current.focus();
       return;
     }
@@ -171,13 +484,11 @@ function AttributesPage() {
     
     if (selection && selection.rangeCount > 0) {
       range = selection.getRangeAt(0);
-      // Check if the selection is within the editor
       if (!editorRef.current.contains(range.commonAncestorContainer)) {
         range = null;
       }
     }
     
-    // If no valid selection, create one at the cursor position or end of content
     if (!range) {
       range = document.createRange();
       const editor = editorRef.current;
@@ -211,10 +522,9 @@ function AttributesPage() {
         }
       } else {
         range.selectNodeContents(editor);
-        range.collapse(false); // Collapse to end
+        range.collapse(false);
       }
       
-      // Set the selection
       selection?.removeAllRanges();
       selection?.addRange(range);
     }
@@ -232,7 +542,6 @@ function AttributesPage() {
     // Execute the formatting command
     try {
       document.execCommand(command, false, value);
-      updateTemplateContent();
     } catch (error) {
       console.error("Format command failed:", error);
     }
@@ -263,15 +572,6 @@ function AttributesPage() {
       URL.revokeObjectURL(url);
     }
   };
-
-  useEffect(() => {
-    if (editorRef.current) {
-      editorRef.current.addEventListener("input", updateTemplateContent);
-      return () => {
-        editorRef.current?.removeEventListener("input", updateTemplateContent);
-      };
-    }
-  }, []);
 
   return (
     <div className="flex flex-col h-screen">
@@ -487,37 +787,40 @@ interface AttributeCardProps {
 }
 
 function AttributeCard({ attribute, onInsert, onToggleExpand, isExpanded, onInsertNested, onViewDetails }: AttributeCardProps) {
+  const isReferenceType = attribute.isReference || (attribute.type === 'Reference' || String(attribute.type).startsWith('refs:') || String(attribute.type).startsWith('ref:'));
+  const hasNestedAttributes = attribute.nestedAttributes && attribute.nestedAttributes.length > 0;
+  const showNestedSection = (attribute.isArray || isReferenceType) && hasNestedAttributes;
+  
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 hover:border-[var(--drt-green)] transition-colors">
+    <div className={`border border-gray-200 rounded-lg p-4 hover:border-[var(--drt-green)] transition-colors ${
+      isReferenceType ? 'bg-[var(--drt-green-light)] bg-opacity-20' : 'bg-white'
+    }`}>
       <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="font-medium text-gray-800">{attribute.name}</span>
-          {attribute.isArray && (
-            <span className="px-2 py-0.5 bg-[var(--drt-green-light)] text-[var(--drt-green-dark)] text-xs font-medium rounded">
-              Array
-            </span>
-          )}
         </div>
       </div>
       <p className="text-sm text-gray-600 mb-3">{attribute.label}</p>
       <div className="flex items-center gap-2">
         <button
           onClick={onViewDetails}
-          className="flex items-center gap-1 px-2 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors border border-gray-300"
+          className="flex items-center gap-1 px-2 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors border border-gray-300 bg-white"
           title="View details"
         >
           <TbInfoCircle className="w-4 h-4" />
           <span>Details</span>
         </button>
-        <button
-          onClick={onInsert}
-          className="flex items-center gap-1 px-3 py-1 bg-[var(--drt-green)] text-white text-sm rounded hover:bg-[var(--drt-green-dark)] transition-colors"
-        >
-          <span>+</span>
-          <span>Insert</span>
-        </button>
+        {!isReferenceType && (
+          <button
+            onClick={onInsert}
+            className="flex items-center gap-1 px-3 py-1 bg-[var(--drt-green)] text-white text-sm rounded hover:bg-[var(--drt-green-dark)] transition-colors"
+          >
+            <span>+</span>
+            <span>Insert</span>
+          </button>
+        )}
       </div>
-      {attribute.isArray && attribute.nestedAttributes && attribute.nestedAttributes.length > 0 && (
+      {showNestedSection && (
         <div className="mt-3 pt-3 border-t border-gray-200">
           <button
             onClick={onToggleExpand}
@@ -526,15 +829,17 @@ function AttributeCard({ attribute, onInsert, onToggleExpand, isExpanded, onInse
             <span className={`transform transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
               &gt;
             </span>
-            <span>Nested Attributes ({attribute.nestedAttributes.length})</span>
+            <span>Nested Attributes ({attribute.nestedAttributes!.length})</span>
           </button>
           {isExpanded && (
             <div className="mt-2 space-y-2 pl-6">
-              {attribute.nestedAttributes.map((nested) => (
+              {attribute.nestedAttributes!.map((nested) => (
                 <div key={nested.name} className="flex items-center justify-between">
                   <div>
                     <span className="text-sm font-medium text-gray-700">{nested.name}</span>
-                    <p className="text-xs text-gray-500">{nested.description}</p>
+                    {nested.description && (
+                      <p className="text-xs text-gray-500">{nested.description}</p>
+                    )}
                   </div>
                   <button
                     onClick={() => onInsertNested(nested.name)}
