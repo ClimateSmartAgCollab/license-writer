@@ -7,6 +7,14 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Check if an attribute type is a reference type
+ */
+export function isReferenceType(type: string | AttributeType): boolean {
+  if (typeof type !== 'string') return false;
+  return type === 'Reference' || type.startsWith('refs:') || type.startsWith('ref:');
+}
+
+/**
  * Detailed attribute information extracted from OCA Package
  */
 export interface AttributeInfo {
@@ -15,6 +23,8 @@ export interface AttributeInfo {
   label: string;
   description: string;
   isArray: boolean;
+  hasEntryCodes: boolean;
+  isReference: boolean;
   nestedAttributes?: AttributeInfo[];
 }
 
@@ -33,6 +43,18 @@ export function extractDetailedAttributes(data: OCAPackage | null): AttributeInf
 
   const attributes = captureBase.attributes;
   const overlays = data.oca_bundle.bundle?.overlays;
+
+  // Get entry codes from entry_code overlay
+  const attributesWithEntryCodes = new Set<string>();
+  const entryCodeOverlay = overlays?.entry_code;
+  if (entryCodeOverlay?.attribute_entry_codes) {
+    Object.keys(entryCodeOverlay.attribute_entry_codes).forEach((attrName) => {
+      const entryCodes = entryCodeOverlay.attribute_entry_codes[attrName];
+      if (Array.isArray(entryCodes) && entryCodes.length > 0) {
+        attributesWithEntryCodes.add(attrName);
+      }
+    });
+  }
 
   // Get labels from label overlays
   const attributeLabels: Record<string, string> = {};
@@ -58,45 +80,114 @@ export function extractDetailedAttributes(data: OCAPackage | null): AttributeInf
     });
   }
 
-  // Extract nested attributes from form overlays in extensions (for array attributes)
-  const getNestedAttributes = (attrName: string, isArray: boolean): AttributeInfo[] => {
-    if (!isArray || !data.extensions?.adc) {
-      return [];
-    }
-
+  // Extract nested attributes from form overlays in extensions (for array attributes and reference types)
+  const getNestedAttributes = (attrName: string, attrType: AttributeType, isArray: boolean): AttributeInfo[] => {
     const nestedAttrs: AttributeInfo[] = [];
+    const isRef = isReferenceType(attrType);
     
-    // Check ADC extensions for form overlays
-    Object.values(data.extensions.adc).forEach((adcExtension) => {
-      if (adcExtension.overlays?.form && Array.isArray(adcExtension.overlays.form)) {
-        adcExtension.overlays.form.forEach((formOverlay) => {
-          if (formOverlay.interaction && Array.isArray(formOverlay.interaction)) {
-            formOverlay.interaction.forEach((interaction) => {
-              if (interaction.arguments) {
-                // Look for attributes that start with the parent attribute name
-                Object.keys(interaction.arguments).forEach((nestedName) => {
-                  if (nestedName.startsWith(attrName + '.') || nestedName.includes(attrName)) {
-                    const nestedArg = interaction.arguments[nestedName];
-                    const nestedTypeValue = nestedArg.type;
-                    const nestedTypeString = typeof nestedTypeValue === 'string' 
-                      ? nestedTypeValue 
-                      : String(nestedTypeValue);
-                    const nestedType = nestedTypeString as AttributeType;
-                    nestedAttrs.push({
-                      name: nestedName.replace(`${attrName}.`, ''),
-                      type: nestedType,
-                      label: attributeLabels[nestedName] || nestedName,
-                      description: attributeDescriptions[nestedName] || `Nested attribute: ${nestedName}`,
-                      isArray: typeof nestedTypeString === 'string' && nestedTypeString.startsWith('Array['),
-                    });
-                  }
-                });
-              }
+    // For reference types, extract nested attributes from dependencies
+    if (isRef && data.oca_bundle?.dependencies) {
+      const attrTypeString = String(attrType);
+      let refDigest: string | null = null;
+      
+      // Extract digest from refs:digest format
+      if (attrTypeString.startsWith('refs:')) {
+        refDigest = attrTypeString.replace('refs:', '');
+      } else if (attrTypeString === 'Reference') {
+        // For 'Reference' type, we need to find the referenced schema
+        // Check if there's a dependency that matches
+        const dependencies = data.oca_bundle.dependencies;
+        if (dependencies.length > 0) {
+          // Use the first dependency or find by matching attribute name pattern
+          const dep = dependencies[0];
+          if (typeof dep === 'string') {
+            refDigest = dep;
+          } else if (dep && typeof dep === 'object' && 'd' in dep) {
+            refDigest = (dep as any).d;
+          }
+        }
+      }
+      
+      // Find the referenced schema in dependencies
+      if (refDigest) {
+        const dependencies = data.oca_bundle.dependencies;
+        dependencies.forEach((dep: any) => {
+          let depDigest: string | null = null;
+          let depCaptureBase: any = null;
+          
+          if (typeof dep === 'string') {
+            depDigest = dep;
+          } else if (dep && typeof dep === 'object') {
+            depDigest = dep.d;
+            depCaptureBase = dep.capture_base || dep.bundle?.capture_base;
+          }
+          
+          if (depDigest === refDigest && depCaptureBase?.attributes) {
+            // Extract attributes from the referenced schema
+            Object.keys(depCaptureBase.attributes).forEach((nestedAttrName) => {
+              const nestedTypeValue = depCaptureBase.attributes[nestedAttrName];
+              const nestedTypeString = typeof nestedTypeValue === 'string' 
+                ? nestedTypeValue 
+                : String(nestedTypeValue);
+              const nestedType = nestedTypeString as AttributeType;
+              const fullNestedName = `${attrName}.${nestedAttrName}`;
+              
+              nestedAttrs.push({
+                name: nestedAttrName,
+                type: nestedType,
+                label: attributeLabels[fullNestedName] || attributeLabels[nestedAttrName] || nestedAttrName,
+                description: attributeDescriptions[fullNestedName] || attributeDescriptions[nestedAttrName] || '',
+                isArray: typeof nestedTypeString === 'string' && nestedTypeString.startsWith('Array['),
+                hasEntryCodes: attributesWithEntryCodes.has(fullNestedName) || attributesWithEntryCodes.has(nestedAttrName),
+                isReference: isReferenceType(nestedType),
+              });
             });
           }
         });
       }
-    });
+    }
+    
+    // For array attributes, check ADC extensions for form overlays
+    if ((isArray || isRef) && data.extensions?.adc) {
+      // Check ADC extensions for form overlays
+      Object.values(data.extensions.adc).forEach((adcExtension) => {
+        if (adcExtension.overlays?.form && Array.isArray(adcExtension.overlays.form)) {
+          adcExtension.overlays.form.forEach((formOverlay) => {
+            if (formOverlay.interaction && Array.isArray(formOverlay.interaction)) {
+              formOverlay.interaction.forEach((interaction) => {
+                if (interaction.arguments) {
+                  // Look for attributes that start with the parent attribute name
+                  Object.keys(interaction.arguments).forEach((nestedName) => {
+                    if (nestedName.startsWith(attrName + '.')) {
+                      const nestedArg = interaction.arguments[nestedName];
+                      const nestedTypeValue = nestedArg.type;
+                      const nestedTypeString = typeof nestedTypeValue === 'string' 
+                        ? nestedTypeValue 
+                        : String(nestedTypeValue);
+                      const nestedType = nestedTypeString as AttributeType;
+                      const nestedAttrName = nestedName.replace(`${attrName}.`, '');
+                      
+                      // Only add if not already added from dependencies
+                      if (!nestedAttrs.find(na => na.name === nestedAttrName)) {
+                        nestedAttrs.push({
+                          name: nestedAttrName,
+                          type: nestedType,
+                          label: attributeLabels[nestedName] || nestedName,
+                          description: attributeDescriptions[nestedName] || '',
+                          isArray: typeof nestedTypeString === 'string' && nestedTypeString.startsWith('Array['),
+                          hasEntryCodes: attributesWithEntryCodes.has(nestedName),
+                          isReference: isReferenceType(nestedType),
+                        });
+                      }
+                    }
+                  });
+                }
+              });
+            }
+          });
+        }
+      });
+    }
 
     return nestedAttrs;
   };
@@ -110,14 +201,17 @@ export function extractDetailedAttributes(data: OCAPackage | null): AttributeInf
       : String(attrTypeValue);
     const attrType = attrTypeString as AttributeType;
     const isArray = typeof attrTypeString === 'string' && attrTypeString.startsWith('Array[');
-    const nestedAttrs = getNestedAttributes(attrName, isArray);
+    const isRef = isReferenceType(attrType);
+    const nestedAttrs = getNestedAttributes(attrName, attrType, isArray);
 
     return {
       name: attrName,
       type: attrType,
       label: attributeLabels[attrName] || attrName,
-      description: attributeDescriptions[attrName] || `Attribute: ${attrName}`,
+      description: attributeDescriptions[attrName] || '',
       isArray,
+      hasEntryCodes: attributesWithEntryCodes.has(attrName),
+      isReference: isRef,
       nestedAttributes: nestedAttrs.length > 0 ? nestedAttrs : undefined,
     };
   });

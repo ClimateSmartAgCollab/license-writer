@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/App";
-import { extractDetailedAttributes, type AttributeInfo } from "@/lib/utils";
+import { extractDetailedAttributes, type AttributeInfo, isReferenceType } from "@/lib/utils";
 import { TbArrowLeft, TbSearch, TbInfoCircle, TbCopy, TbDownload } from "react-icons/tb";
 import { Button } from "@/components/ui/button";
 import { AttributeDetailsModal } from "@/components/AttributeDetailsModal";
@@ -787,13 +787,13 @@ interface AttributeCardProps {
 }
 
 function AttributeCard({ attribute, onInsert, onToggleExpand, isExpanded, onInsertNested, onViewDetails }: AttributeCardProps) {
-  const isReferenceType = attribute.isReference || (attribute.type === 'Reference' || String(attribute.type).startsWith('refs:') || String(attribute.type).startsWith('ref:'));
+  const isRefType = attribute.isReference || isReferenceType(attribute.type);
   const hasNestedAttributes = attribute.nestedAttributes && attribute.nestedAttributes.length > 0;
-  const showNestedSection = (attribute.isArray || isReferenceType) && hasNestedAttributes;
+  const showNestedSection = (attribute.isArray || isRefType) && hasNestedAttributes;
   
   return (
     <div className={`border border-gray-200 rounded-lg p-4 hover:border-[var(--drt-green)] transition-colors ${
-      isReferenceType ? 'bg-[var(--drt-green-light)] bg-opacity-20' : 'bg-white'
+      isRefType ? 'bg-[var(--drt-green-light)] bg-opacity-20' : 'bg-white'
     }`}>
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2 flex-wrap">
@@ -810,7 +810,7 @@ function AttributeCard({ attribute, onInsert, onToggleExpand, isExpanded, onInse
           <TbInfoCircle className="w-4 h-4" />
           <span>Details</span>
         </button>
-        {!isReferenceType && (
+        {!isRefType && (
           <button
             onClick={onInsert}
             className="flex items-center gap-1 px-3 py-1 bg-[var(--drt-green)] text-white text-sm rounded hover:bg-[var(--drt-green-dark)] transition-colors"
