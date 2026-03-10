@@ -1,7 +1,11 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/App";
-import { extractDetailedAttributes, type AttributeInfo } from "@/lib/utils";
+import {
+  extractDetailedAttributes,
+  extractFormAttributeOrder,
+  type AttributeInfo,
+} from "@/lib/utils";
 import { TbArrowLeft, TbCopy, TbDownload } from "react-icons/tb";
 import { Button } from "@/components/ui/button";
 import { AttributeDetailsModal } from "@/components/AttributeDetailsModal";
@@ -15,6 +19,7 @@ function AttributesPage() {
   const [selectedAttribute, setSelectedAttribute] = useState<AttributeInfo | null>(null);
 
   const attributes = extractDetailedAttributes(rawJsonData);
+  const formAttributeOrder = extractFormAttributeOrder(rawJsonData);
 
   if (!rawJsonData) {
     return (
@@ -107,6 +112,7 @@ function AttributesPage() {
         {/* Left Sidebar - Attribute List */}
         <AttributeListSidebar
           attributes={attributes}
+          attributeOrder={formAttributeOrder}
           onInsert={handleInsertAttribute}
           onInsertNested={handleInsertNested}
           onViewDetails={setSelectedAttribute}

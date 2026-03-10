@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { TbSearch } from "react-icons/tb";
 import { type AttributeInfo } from "@/lib/utils";
 import { AttributeCard } from "./AttributeCard";
 
 interface AttributeListSidebarProps {
   attributes: AttributeInfo[];
+  attributeOrder?: string[];
   onInsert: (attrName: string) => void;
   onInsertNested: (nestedName: string, parentName: string) => void;
   onViewDetails: (attribute: AttributeInfo) => void;
@@ -12,6 +13,7 @@ interface AttributeListSidebarProps {
 
 export function AttributeListSidebar({
   attributes,
+  attributeOrder = [],
   onInsert,
   onInsertNested,
   onViewDetails,
@@ -19,7 +21,33 @@ export function AttributeListSidebar({
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedAttributes, setExpandedAttributes] = useState<Set<string>>(new Set());
 
-  const filteredAttributes = attributes.filter(
+  const orderedAttributes = useMemo(() => {
+    if (attributeOrder.length === 0) {
+      return attributes;
+    }
+
+    const orderIndex = new Map(attributeOrder.map((name, index) => [name, index]));
+    const fallbackIndex = new Map(attributes.map((attr, index) => [attr.name, index]));
+
+    return [...attributes].sort((a, b) => {
+      const aOrder = orderIndex.get(a.name);
+      const bOrder = orderIndex.get(b.name);
+
+      if (aOrder !== undefined && bOrder !== undefined) {
+        return aOrder - bOrder;
+      }
+      if (aOrder !== undefined) {
+        return -1;
+      }
+      if (bOrder !== undefined) {
+        return 1;
+      }
+
+      return (fallbackIndex.get(a.name) ?? 0) - (fallbackIndex.get(b.name) ?? 0);
+    });
+  }, [attributes, attributeOrder]);
+
+  const filteredAttributes = orderedAttributes.filter(
     (attr) =>
       attr.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       attr.label.toLowerCase().includes(searchQuery.toLowerCase())

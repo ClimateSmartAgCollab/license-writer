@@ -84,6 +84,7 @@ export function extractDetailedAttributes(data: OCAPackage | null): AttributeInf
   const getNestedAttributes = (attrName: string, attrType: AttributeType, isArray: boolean): AttributeInfo[] => {
     const nestedAttrs: AttributeInfo[] = [];
     const isRef = isReferenceType(attrType);
+    let referencedDigest: string | null = null;
     
     // For reference types, extract nested attributes from dependencies
     if (isRef && data.oca_bundle?.dependencies) {
@@ -110,6 +111,7 @@ export function extractDetailedAttributes(data: OCAPackage | null): AttributeInf
       
       // Find the referenced schema in dependencies
       if (refDigest) {
+        referencedDigest = refDigest;
         const dependencies = data.oca_bundle.dependencies;
         dependencies.forEach((dep: any) => {
           let depDigest: string | null = null;
@@ -189,7 +191,38 @@ export function extractDetailedAttributes(data: OCAPackage | null): AttributeInf
       });
     }
 
-    return nestedAttrs;
+    if (nestedAttrs.length <= 1) {
+      return nestedAttrs;
+    }
+
+    const nestedOrder = extractFormAttributeOrder(data, referencedDigest || undefined);
+    if (nestedOrder.length === 0) {
+      return nestedAttrs;
+    }
+
+    const nestedOrderIndex = new Map(
+      nestedOrder.map((name, index) => [name, index])
+    );
+    const fallbackIndex = new Map(
+      nestedAttrs.map((attr, index) => [attr.name, index])
+    );
+
+    return [...nestedAttrs].sort((a, b) => {
+      const aOrder = nestedOrderIndex.get(a.name);
+      const bOrder = nestedOrderIndex.get(b.name);
+
+      if (aOrder !== undefined && bOrder !== undefined) {
+        return aOrder - bOrder;
+      }
+      if (aOrder !== undefined) {
+        return -1;
+      }
+      if (bOrder !== undefined) {
+        return 1;
+      }
+
+      return (fallbackIndex.get(a.name) ?? 0) - (fallbackIndex.get(b.name) ?? 0);
+    });
   };
 
   // Extract attribute information
@@ -406,4 +439,69 @@ export function validateSchemaLevels(
     isValid: true,
     actualLevel,
   };
+}
+
+export function extractFormAttributeOrder(
+  ocaPackage: OCAPackage | null,
+  captureBaseDigest?: string
+): string[] {
+  if (!ocaPackage?.extensions?.adc) {
+    return [];
+  }
+
+  const targetDigest = captureBaseDigest || ocaPackage.oca_bundle?.bundle?.capture_base?.d;
+  const adcExtensions = Object.values(ocaPackage.extensions.adc);
+  const allForms = adcExtensions.flatMap((extension) =>
+    Array.isArray(extension?.overlays?.form) ? extension.overlays.form : []
+  );
+
+  const formsToUse =
+    targetDigest
+      ? allForms.filter((form) => form.capture_base === targetDigest)
+      : allForms;
+
+  const orderedAttributes: string[] = [];
+  const seen = new Set<string>();
+
+  formsToUse.forEach((form) => {
+    const pages = Array.isArray(form.pages) ? form.pages : [];
+    if (pages.length === 0) {
+      return;
+    }
+
+    const pageBySection = new Map(
+      pages.map((page) => [page.named_section, page])
+    );
+
+    const pageOrder =
+      Array.isArray(form.page_order) && form.page_order.length > 0
+        ? form.page_order
+        : pages.map((page) => page.named_section);
+
+    pageOrder.forEach((pageSectionName) => {
+      const page = pageBySection.get(pageSectionName);
+      if (!page?.attribute_order || !Array.isArray(page.attribute_order)) {
+        return;
+      }
+
+      page.attribute_order.forEach((section) => {
+        if (!Array.isArray(section?.attribute_order)) {
+          return;
+        }
+
+        section.attribute_order.forEach((attributeName) => {
+          if (!seen.has(attributeName)) {
+            seen.add(attributeName);
+            orderedAttributes.push(attributeName);
+          }
+        });
+      });
+    });
+  });
+
+  if (orderedAttributes.length > 0) {
+    return orderedAttributes;
+  }
+
+  return [];
 }
