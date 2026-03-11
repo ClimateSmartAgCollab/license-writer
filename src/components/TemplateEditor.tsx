@@ -1,11 +1,13 @@
 import { forwardRef, useImperativeHandle } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import { defaultMarkdownSerializer } from "prosemirror-markdown";
 
 export interface TemplateEditorRef {
   insertAttribute: (attrName: string, isNested?: boolean, parentName?: string) => void;
   handleCopy: () => Promise<void>;
-  handleDownload: () => void;
+  handleDownloadTxt: () => void;
+  handleDownloadMarkdown: () => void;
 }
 
 interface TemplateEditorProps {
@@ -156,26 +158,49 @@ export const TemplateEditor = forwardRef<TemplateEditorRef, TemplateEditorProps>
     }
   };
 
-  const handleDownload = () => {
-    if (editor) {
-      const text = editor.getText();
-      const blob = new Blob([text], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "template.txt";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+  const getDatedFilename = (extension: "txt" | "md"): string => {
+    const dateStamp = new Date().toISOString().slice(0, 10);
+    return `template-${dateStamp}.${extension}`;
+  };
+
+  const downloadBlob = (content: string, mimeType: string, filename: string) => {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadTxt = () => {
+    if (!editor) return;
+    const text = editor.getText();
+    downloadBlob(text, "text/plain", getDatedFilename("txt"));
+  };
+
+  const handleDownloadMarkdown = () => {
+    if (!editor) return;
+
+    let markdown = "";
+    try {
+      markdown = defaultMarkdownSerializer.serialize(editor.state.doc);
+    } catch {
+      // Keep export functional even if serializer hits an unsupported node.
+      markdown = editor.getText();
     }
+
+    downloadBlob(markdown, "text/markdown", getDatedFilename("md"));
   };
 
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
     insertAttribute,
     handleCopy,
-    handleDownload,
+    handleDownloadTxt,
+    handleDownloadMarkdown,
   }));
 
   if (!editor) {

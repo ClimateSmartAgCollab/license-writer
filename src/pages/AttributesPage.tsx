@@ -68,8 +68,12 @@ function AttributesPage() {
     await editorRef.current?.handleCopy();
   };
 
-  const handleDownload = () => {
-    editorRef.current?.handleDownload();
+  const handleDownloadTxt = () => {
+    editorRef.current?.handleDownloadTxt();
+  };
+
+  const handleDownloadMarkdown = () => {
+    editorRef.current?.handleDownloadMarkdown();
   };
 
   return (
@@ -91,11 +95,18 @@ function AttributesPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button
-            onClick={handleDownload}
+            onClick={handleDownloadTxt}
             className="bg-white text-[var(--drt-green)] hover:bg-gray-100 px-4 py-2"
           >
             <TbDownload className="w-4 h-4" />
-            <span>Download Template</span>
+            <span>Download TXT</span>
+          </Button>
+          <Button
+            onClick={handleDownloadMarkdown}
+            className="bg-white text-[var(--drt-green)] hover:bg-gray-100 px-4 py-2"
+          >
+            <TbDownload className="w-4 h-4" />
+            <span>Download Markdown</span>
           </Button>
           <Button
             onClick={handleCopy}
