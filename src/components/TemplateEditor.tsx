@@ -4,7 +4,11 @@ import StarterKit from "@tiptap/starter-kit";
 import { defaultMarkdownSerializer } from "prosemirror-markdown";
 
 export interface TemplateEditorRef {
-  insertAttribute: (attrName: string, isNested?: boolean, parentName?: string) => void;
+  insertAttribute: (
+    attrName: string,
+    isNested?: boolean,
+    parentName?: string,
+  ) => void;
   handleCopy: () => Promise<void>;
   handleDownloadTxt: () => void;
   handleDownloadMarkdown: () => void;
@@ -14,13 +18,17 @@ interface TemplateEditorProps {
   // Props can be added here if needed in the future
 }
 
-export const TemplateEditor = forwardRef<TemplateEditorRef, TemplateEditorProps>((_props, ref) => {
+export const TemplateEditor = forwardRef<
+  TemplateEditorRef,
+  TemplateEditorProps
+>((_props, ref) => {
   const editor = useEditor({
     extensions: [StarterKit],
     content: "",
     editorProps: {
       attributes: {
-        class: "min-h-full w-full max-w-4xl mx-auto bg-white rounded-lg border border-gray-200 p-6 focus:outline-none focus:ring-2 focus:ring-[var(--drt-green)] focus:border-transparent prose prose-sm",
+        class:
+          "min-h-full w-full max-w-4xl mx-auto bg-white rounded-lg border border-gray-200 p-6 focus:outline-none focus:ring-2 focus:ring-[var(--drt-green)] focus:border-transparent prose prose-sm",
         style: "white-space: pre-wrap; word-wrap: break-word;",
       },
     },
@@ -39,7 +47,11 @@ export const TemplateEditor = forwardRef<TemplateEditorRef, TemplateEditorProps>
     return doc.textBetween(0, selection.anchor, "\n", "\n").length;
   };
 
-  const insertAttribute = (attrName: string, isNested = false, parentName?: string) => {
+  const insertAttribute = (
+    attrName: string,
+    isNested = false,
+    parentName?: string,
+  ) => {
     if (!editor) return;
 
     editor.chain().focus().run();
@@ -54,8 +66,8 @@ export const TemplateEditor = forwardRef<TemplateEditorRef, TemplateEditorProps>
 
       // Find all for loops for this parent
       const loopRegex = new RegExp(
-        `{%\\s*for\\s+${escParent}\\s+in\\s+${escParent}\\s*%}([\\s\\S]*?){%\\s*endfor\\s*%}`,
-        "g"
+        `{%\\s*for\\s+\\w+\\s+in\\s+${escParent}\\s*%}([\\s\\S]*?){%\\s*endfor\\s*%}`,
+        "g",
       );
 
       let match: RegExpExecArray | null;
@@ -75,13 +87,22 @@ export const TemplateEditor = forwardRef<TemplateEditorRef, TemplateEditorProps>
 
         // Check if cursor is between {% for %} and {% endfor %}
         const tolerance = 10; // Tolerance to handle newlines and whitespace
-        const isInRange = cursorPos >= contentStart - tolerance && cursorPos <= contentEnd + tolerance;
+        const isInRange =
+          cursorPos >= contentStart - tolerance &&
+          cursorPos <= contentEnd + tolerance;
 
         if (isInRange) {
           cursorInsideLoop = true;
 
+          // Extract the loop variable name from the for opening tag
+          const loopVarMatch = openingTag.match(/{%\s*for\s+(\w+)\s+in/);
+          const loopVar = loopVarMatch ? loopVarMatch[1] : "item";
+
           // Check if this exact attribute already exists in this loop
-          const attrPattern = new RegExp(`{{\\s*${escParent}\\.${escAttr}\\s*}}`, "i");
+          const attrPattern = new RegExp(
+            `{{\\s*${loopVar}\\.${escAttr}\\s*}}`,
+            "i",
+          );
 
           if (attrPattern.test(match[1])) {
             // Attribute already exists in this loop.
@@ -89,7 +110,7 @@ export const TemplateEditor = forwardRef<TemplateEditorRef, TemplateEditorProps>
           }
 
           // Insert the attribute at current cursor position inside the loop
-          editor.chain().insertContent(`{{ ${parentName}.${attrName} }}`).run();
+          editor.chain().insertContent(`{{ ${loopVar}.${attrName} }}`).run();
           return;
         }
       }
@@ -97,7 +118,7 @@ export const TemplateEditor = forwardRef<TemplateEditorRef, TemplateEditorProps>
       // Cursor is NOT inside any existing loop for this parent
       // Create a new for loop block at cursor position
       if (!cursorInsideLoop) {
-        const loopContent = `{% for ${parentName} in ${parentName} %}\n  {{ ${parentName}.${attrName} }}\n{% endfor %}`;
+        const loopContent = `{% for item in ${parentName} %}\n  {{ item.${attrName} }}\n{% endfor %}`;
         editor.chain().insertContent(loopContent).run();
         return;
       }
@@ -107,7 +128,11 @@ export const TemplateEditor = forwardRef<TemplateEditorRef, TemplateEditorProps>
     }
   };
 
-  const handleFormat = (command: string, value?: string, event?: React.MouseEvent) => {
+  const handleFormat = (
+    command: string,
+    value?: string,
+    event?: React.MouseEvent,
+  ) => {
     if (event) {
       event.preventDefault();
       event.stopPropagation();
@@ -163,7 +188,11 @@ export const TemplateEditor = forwardRef<TemplateEditorRef, TemplateEditorProps>
     return `template-${dateStamp}.${extension}`;
   };
 
-  const downloadBlob = (content: string, mimeType: string, filename: string) => {
+  const downloadBlob = (
+    content: string,
+    mimeType: string,
+    filename: string,
+  ) => {
     const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -210,7 +239,9 @@ export const TemplateEditor = forwardRef<TemplateEditorRef, TemplateEditorProps>
   return (
     <div className="flex-1 flex flex-col bg-gray-50">
       <div className="p-4 border-b border-gray-200 bg-white">
-        <h2 className="text-lg font-semibold text-gray-800 mb-3">Insert attribute</h2>
+        <h2 className="text-lg font-semibold text-gray-800 mb-3">
+          Insert attribute
+        </h2>
 
         {/* Formatting Toolbar */}
         <div className="flex items-center gap-2 flex-wrap">
@@ -268,7 +299,12 @@ export const TemplateEditor = forwardRef<TemplateEditorRef, TemplateEditorProps>
             }`}
             title="Unordered List"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -284,7 +320,12 @@ export const TemplateEditor = forwardRef<TemplateEditorRef, TemplateEditorProps>
             }`}
             title="Ordered List"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -300,7 +341,12 @@ export const TemplateEditor = forwardRef<TemplateEditorRef, TemplateEditorProps>
             }`}
             title="Quote"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -316,7 +362,12 @@ export const TemplateEditor = forwardRef<TemplateEditorRef, TemplateEditorProps>
             title="Undo"
             disabled={!editor.can().undo()}
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -331,7 +382,12 @@ export const TemplateEditor = forwardRef<TemplateEditorRef, TemplateEditorProps>
             title="Redo"
             disabled={!editor.can().redo()}
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
