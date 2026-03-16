@@ -81,7 +81,9 @@ export const TemplateEditor = forwardRef<TemplateEditorRef, TemplateEditorProps>
           cursorInsideLoop = true;
 
           // Check if this exact attribute already exists in this loop
-          const attrPattern = new RegExp(`{{\\s*${escParent}\\.${escAttr}\\s*}}`, "i");
+          const loopVar = match[1];
+          const escLoopVar = loopVar.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const attrPattern = new RegExp(`{{\\s*${escLoopVar}\\.${escAttr}\\s*}}`, "i");
 
           if (attrPattern.test(match[1])) {
             // Attribute already exists in this loop.
