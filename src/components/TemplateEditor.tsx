@@ -3,6 +3,15 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { defaultMarkdownSerializer } from "prosemirror-markdown";
 
+const SUPPORTED_TEMPLATE_BLOCK_TAGS = new Set([
+  "for",
+  "endfor",
+  "if",
+  "elif",
+  "else",
+  "endif",
+]);
+
 export interface TemplateEditorRef {
   insertAttribute: (
     attrName: string,
@@ -128,6 +137,39 @@ export const TemplateEditor = forwardRef<
     }
   };
 
+  const findUnsupportedTemplateTags = (content: string): string[] => {
+    const blockTagRegex = /{%\s*([a-zA-Z_][\w]*)\b[^%]*%}/g;
+    const unsupported = new Set<string>();
+    let match: RegExpExecArray | null;
+
+    while ((match = blockTagRegex.exec(content)) !== null) {
+      const tag = match[1].toLowerCase();
+      if (!SUPPORTED_TEMPLATE_BLOCK_TAGS.has(tag)) {
+        unsupported.add(tag);
+      }
+    }
+
+    return [...unsupported];
+  };
+
+  const validateSupportedTemplateRules = (content: string): boolean => {
+    const unsupportedTags = findUnsupportedTemplateTags(content);
+
+    if (unsupportedTags.length > 0) {
+      console.warn(
+        "Unsupported template tags found:",
+        unsupportedTags.join(", "),
+      );
+      window.alert(
+        `Unsupported template tags detected: ${unsupportedTags.join(", ")}.\n` +
+          "This editor only supports variable insertion, for-loop blocks, and optional if-blocks.",
+      );
+      return false;
+    }
+
+    return true;
+  };
+
   const handleFormat = (
     command: string,
     value?: string,
@@ -178,6 +220,7 @@ export const TemplateEditor = forwardRef<
   const handleCopy = async () => {
     if (editor) {
       const text = editor.getText();
+      if (!validateSupportedTemplateRules(text)) return;
       await navigator.clipboard.writeText(text);
       // You could add a toast notification here
     }
@@ -207,11 +250,15 @@ export const TemplateEditor = forwardRef<
   const handleDownloadTxt = () => {
     if (!editor) return;
     const text = editor.getText();
+    if (!validateSupportedTemplateRules(text)) return;
     downloadBlob(text, "text/plain", getDatedFilename("txt"));
   };
 
   const handleDownloadMarkdown = () => {
     if (!editor) return;
+
+    const plainText = editor.getText();
+    if (!validateSupportedTemplateRules(plainText)) return;
 
     let markdown = "";
     try {
