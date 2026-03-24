@@ -129,7 +129,7 @@ export function AttributeDetailsModal({
             <div className="bg-[var(--drt-green-light)] border border-[var(--drt-green)] rounded-lg p-3">
               {isRefType && attribute.nestedAttributes && attribute.nestedAttributes.length > 0 ? (
                 <code className="text-sm text-[var(--drt-green-dark)] font-mono whitespace-pre-wrap">
-                  {`{% for ${attribute.name} in ${attribute.name} %}\n  {{ ${attribute.name}.${attribute.nestedAttributes[0]?.name || 'attribute'} }}\n{% endfor %}`}
+                  {`{% for item in ${attribute.name} %}\n  {{ item.${attribute.nestedAttributes[0]?.name || 'attribute'} }}\n{% endfor %}`}
                 </code>
               ) : (
                 <code className="text-sm text-[var(--drt-green-dark)] font-mono">
