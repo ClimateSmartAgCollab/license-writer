@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/App";
 import {
@@ -11,15 +11,45 @@ import { Button } from "@/components/ui/button";
 import { AttributeDetailsModal } from "@/components/AttributeDetailsModal";
 import { AttributeListSidebar } from "@/components/AttributeListSidebar";
 import { TemplateEditor, type TemplateEditorRef } from "@/components/TemplateEditor";
+import {
+  TemplateBuilder,
+  type BuilderRepeatContext,
+  type RepeatAttributeOption,
+  type TemplateBuilderRef,
+} from "@/components/TemplateBuilder";
 
 function AttributesPage() {
   const { rawJsonData } = useApp();
   const navigate = useNavigate();
   const editorRef = useRef<TemplateEditorRef>(null);
+  const builderRef = useRef<TemplateBuilderRef>(null);
   const [selectedAttribute, setSelectedAttribute] = useState<AttributeInfo | null>(null);
+  const [mode, setMode] = useState<"builder" | "advanced">("builder");
+  const [builderRepeatContext, setBuilderRepeatContext] =
+    useState<BuilderRepeatContext | null>(null);
 
   const attributes = extractDetailedAttributes(rawJsonData);
   const formAttributeOrder = extractFormAttributeOrder(rawJsonData);
+  const repeatAttributeOptions: RepeatAttributeOption[] = attributes
+    .filter((attr) => attr.isReference && (attr.nestedAttributes?.length ?? 0) > 0)
+    .map((attr) => ({
+      name: attr.name,
+      nestedAttributes: (attr.nestedAttributes ?? []).map((nested) => nested.name),
+    }));
+
+  const repeatParentAttribute = builderRepeatContext
+    ? attributes.find((attr) => attr.name === builderRepeatContext.parentName)
+    : undefined;
+
+  const sidebarAttributes =
+    mode === "builder" && repeatParentAttribute?.nestedAttributes
+      ? repeatParentAttribute.nestedAttributes
+      : attributes;
+
+  const sidebarAttributeOrder =
+    mode === "builder" && repeatParentAttribute?.nestedAttributes
+      ? repeatParentAttribute.nestedAttributes.map((nested) => nested.name)
+      : formAttributeOrder;
 
   if (!rawJsonData) {
     return (
@@ -57,23 +87,43 @@ function AttributesPage() {
   }
 
   const handleInsertAttribute = (attrName: string, isNested = false, parentName?: string) => {
-    editorRef.current?.insertAttribute(attrName, isNested, parentName);
+    if (mode === "advanced") {
+      editorRef.current?.insertAttribute(attrName, isNested, parentName);
+      return;
+    }
+
+    builderRef.current?.insertAttribute(attrName, isNested, parentName);
   };
 
   const handleInsertNested = (nestedName: string, parentName: string) => {
-    editorRef.current?.insertAttribute(nestedName, true, parentName);
+    handleInsertAttribute(nestedName, true, parentName);
   };
 
   const handleCopy = async () => {
-    await editorRef.current?.handleCopy();
+    if (mode === "advanced") {
+      await editorRef.current?.handleCopy();
+      return;
+    }
+
+    await builderRef.current?.handleCopy();
   };
 
   const handleDownloadTxt = () => {
-    editorRef.current?.handleDownloadTxt();
+    if (mode === "advanced") {
+      editorRef.current?.handleDownloadTxt();
+      return;
+    }
+
+    builderRef.current?.handleDownloadTxt();
   };
 
   const handleDownloadMarkdown = () => {
-    editorRef.current?.handleDownloadMarkdown();
+    if (mode === "advanced") {
+      editorRef.current?.handleDownloadMarkdown();
+      return;
+    }
+
+    builderRef.current?.handleDownloadMarkdown();
   };
 
   return (
@@ -94,6 +144,26 @@ function AttributesPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            onClick={() => setMode("builder")}
+            className={`px-4 py-2 ${
+              mode === "builder"
+                ? "bg-white text-[var(--drt-green)] hover:bg-gray-100"
+                : "bg-[var(--drt-green-dark)] text-white hover:bg-[var(--drt-green-dark)]/90"
+            }`}
+          >
+            Builder mode
+          </Button>
+          <Button
+            onClick={() => setMode("advanced")}
+            className={`px-4 py-2 ${
+              mode === "advanced"
+                ? "bg-white text-[var(--drt-green)] hover:bg-gray-100"
+                : "bg-[var(--drt-green-dark)] text-white hover:bg-[var(--drt-green-dark)]/90"
+            }`}
+          >
+            Advanced mode
+          </Button>
           <Button
             onClick={handleDownloadTxt}
             className="bg-white text-[var(--drt-green)] hover:bg-gray-100 px-4 py-2"
@@ -122,15 +192,23 @@ function AttributesPage() {
       <div className="flex flex-1 overflow-hidden">
         {/* Left Sidebar - Attribute List */}
         <AttributeListSidebar
-          attributes={attributes}
-          attributeOrder={formAttributeOrder}
+          attributes={sidebarAttributes}
+          attributeOrder={sidebarAttributeOrder}
           onInsert={handleInsertAttribute}
           onInsertNested={handleInsertNested}
           onViewDetails={setSelectedAttribute}
         />
 
         {/* Main Editor Area */}
-        <TemplateEditor ref={editorRef} />
+        {mode === "builder" ? (
+          <TemplateBuilder
+            ref={builderRef}
+            repeatAttributeOptions={repeatAttributeOptions}
+            onRepeatContextChange={setBuilderRepeatContext}
+          />
+        ) : (
+          <TemplateEditor ref={editorRef} />
+        )}
       </div>
 
       {/* Attribute Details Modal */}

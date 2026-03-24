@@ -2,6 +2,7 @@ import { forwardRef, useImperativeHandle } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { defaultMarkdownSerializer } from "prosemirror-markdown";
+import EditorFormattingToolbar from "@/components/common/EditorFormattingToolbar";
 
 const SUPPORTED_TEMPLATE_BLOCK_TAGS = new Set([
   "for",
@@ -170,53 +171,6 @@ export const TemplateEditor = forwardRef<
     return true;
   };
 
-  const handleFormat = (
-    command: string,
-    value?: string,
-    event?: React.MouseEvent,
-  ) => {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-
-    if (!editor) return;
-
-    editor.chain().focus().run();
-
-    switch (command) {
-      case "undo":
-        editor.chain().undo().run();
-        break;
-      case "redo":
-        editor.chain().redo().run();
-        break;
-      case "bold":
-        editor.chain().toggleBold().run();
-        break;
-      case "italic":
-        editor.chain().toggleItalic().run();
-        break;
-      case "formatBlock":
-        if (value === "h1") {
-          editor.chain().toggleHeading({ level: 1 }).run();
-        } else if (value === "h2") {
-          editor.chain().toggleHeading({ level: 2 }).run();
-        } else if (value === "h3") {
-          editor.chain().toggleHeading({ level: 3 }).run();
-        } else if (value === "blockquote") {
-          editor.chain().toggleBlockquote().run();
-        }
-        break;
-      case "insertUnorderedList":
-        editor.chain().toggleBulletList().run();
-        break;
-      case "insertOrderedList":
-        editor.chain().toggleOrderedList().run();
-        break;
-    }
-  };
-
   const handleCopy = async () => {
     if (editor) {
       const text = editor.getText();
@@ -290,160 +244,7 @@ export const TemplateEditor = forwardRef<
           Insert attribute
         </h2>
 
-        {/* Formatting Toolbar */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={(e) => handleFormat("formatBlock", "h1", e)}
-            className={`px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100 text-sm font-semibold ${
-              editor.isActive("heading", { level: 1 }) ? "bg-gray-200" : ""
-            }`}
-            title="Heading 1"
-          >
-            H1
-          </button>
-          <button
-            onClick={(e) => handleFormat("formatBlock", "h2", e)}
-            className={`px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100 text-sm font-semibold ${
-              editor.isActive("heading", { level: 2 }) ? "bg-gray-200" : ""
-            }`}
-            title="Heading 2"
-          >
-            H2
-          </button>
-          <button
-            onClick={(e) => handleFormat("formatBlock", "h3", e)}
-            className={`px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100 text-sm font-semibold ${
-              editor.isActive("heading", { level: 3 }) ? "bg-gray-200" : ""
-            }`}
-            title="Heading 3"
-          >
-            H3
-          </button>
-          <div className="w-px h-6 bg-gray-300 mx-1" />
-          <button
-            onClick={(e) => handleFormat("bold", undefined, e)}
-            className={`px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100 text-sm font-bold ${
-              editor.isActive("bold") ? "bg-gray-200" : ""
-            }`}
-            title="Bold"
-          >
-            B
-          </button>
-          <button
-            onClick={(e) => handleFormat("italic", undefined, e)}
-            className={`px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100 text-sm italic ${
-              editor.isActive("italic") ? "bg-gray-200" : ""
-            }`}
-            title="Italic"
-          >
-            I
-          </button>
-          <div className="w-px h-6 bg-gray-300 mx-1" />
-          <button
-            onClick={(e) => handleFormat("insertUnorderedList", undefined, e)}
-            className={`px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100 ${
-              editor.isActive("bulletList") ? "bg-gray-200" : ""
-            }`}
-            title="Unordered List"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 6h16M4 12h16M4 18h16"
-              />
-            </svg>
-          </button>
-          <button
-            onClick={(e) => handleFormat("insertOrderedList", undefined, e)}
-            className={`px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100 ${
-              editor.isActive("orderedList") ? "bg-gray-200" : ""
-            }`}
-            title="Ordered List"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"
-              />
-            </svg>
-          </button>
-          <button
-            onClick={(e) => handleFormat("formatBlock", "blockquote", e)}
-            className={`px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100 ${
-              editor.isActive("blockquote") ? "bg-gray-200" : ""
-            }`}
-            title="Quote"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-              />
-            </svg>
-          </button>
-          <div className="w-px h-6 bg-gray-300 mx-1" />
-          <button
-            onClick={(e) => handleFormat("undo", undefined, e)}
-            className="px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100"
-            title="Undo"
-            disabled={!editor.can().undo()}
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
-              />
-            </svg>
-          </button>
-          <button
-            onClick={(e) => handleFormat("redo", undefined, e)}
-            className="px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100"
-            title="Redo"
-            disabled={!editor.can().redo()}
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"
-              />
-            </svg>
-          </button>
-        </div>
+        <EditorFormattingToolbar editor={editor} />
       </div>
 
       {/* Editable Text Area */}
