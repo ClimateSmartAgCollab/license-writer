@@ -1,10 +1,24 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useState,
+  type ReactNode,
+} from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Header from "@/components/common/Header";
 import LicenseFileUpload from "@/features/license/LicenseFileUpload";
 import TemplateFileUpload from "@/features/template/TemplateFileUpload";
+import {
+  initialTemplateState,
+  templateReducer,
+} from "@/features/template/state/templateStore";
 import AttributesPage from "@/pages/AttributesPage";
 import type { OCAPackage } from "@/types/oca";
+import type {
+  BuilderRepeatContext,
+  TemplateCommand,
+} from "@/types/template-commands";
 import "./App.css";
 
 
@@ -13,9 +27,11 @@ interface AppContextType {
   attributes: string[];
   rawJsonData: OCAPackage | null;
   jinjaText: string;
+  templateWarnings: string[];
+  builderRepeatContext: BuilderRepeatContext | null;
   setAttributes: (attributes: string[]) => void;
   setRawJsonData: (data: OCAPackage | null) => void;
-  setJinjaText: (text: string) => void;
+  dispatchTemplateCommand: (command: TemplateCommand) => void;
 }
 
 
@@ -35,15 +51,23 @@ function AppProvider({ children }: { children: ReactNode }) {
   // License state
   const [attributes, setAttributes] = useState<string[]>([]);
   const [rawJsonData, setRawJsonData] = useState<OCAPackage | null>(null);
-  const [jinjaText, setJinjaText] = useState("");
+  const [templateState, setTemplateState] = useState(initialTemplateState);
+
+  const dispatchTemplateCommand = useCallback((command: TemplateCommand) => {
+    setTemplateState((current) => templateReducer(current, command));
+  }, []);
 
   const value: AppContextType = {
     attributes,
     rawJsonData,
-    jinjaText,
+    jinjaText: templateState.jinjaText,
+    templateWarnings: templateState.warnings.map((warning) =>
+      warning.detail ? `${warning.message} (${warning.detail})` : warning.message,
+    ),
+    builderRepeatContext: templateState.builderContext,
     setAttributes,
     setRawJsonData,
-    setJinjaText,
+    dispatchTemplateCommand,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

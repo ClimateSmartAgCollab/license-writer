@@ -13,20 +13,24 @@ import { AttributeListSidebar } from "@/components/AttributeListSidebar";
 import { TemplateEditor, type TemplateEditorRef } from "@/components/TemplateEditor";
 import {
   TemplateBuilder,
-  type BuilderRepeatContext,
   type RepeatAttributeOption,
   type TemplateBuilderRef,
 } from "@/components/TemplateBuilder";
 
 function AttributesPage() {
-  const { rawJsonData, jinjaText, setJinjaText } = useApp();
+  const {
+    rawJsonData,
+    jinjaText,
+    templateWarnings,
+    builderRepeatContext,
+    dispatchTemplateCommand,
+  } = useApp();
   const navigate = useNavigate();
   const editorRef = useRef<TemplateEditorRef>(null);
   const builderRef = useRef<TemplateBuilderRef>(null);
   const [selectedAttribute, setSelectedAttribute] = useState<AttributeInfo | null>(null);
   const [mode, setMode] = useState<"builder" | "advanced">("builder");
-  const [builderRepeatContext, setBuilderRepeatContext] =
-    useState<BuilderRepeatContext | null>(null);
+  const [cursorByMode, setCursorByMode] = useState({ builder: 0, advanced: 0 });
 
   const attributes = extractDetailedAttributes(rawJsonData);
   const formAttributeOrder = extractFormAttributeOrder(rawJsonData);
@@ -87,12 +91,16 @@ function AttributesPage() {
   }
 
   const handleInsertAttribute = (attrName: string, isNested = false, parentName?: string) => {
-    if (mode === "advanced") {
-      editorRef.current?.insertAttribute(attrName, isNested, parentName);
-      return;
-    }
-
-    builderRef.current?.insertAttribute(attrName, isNested, parentName);
+    dispatchTemplateCommand({
+      type: "insert_variable",
+      payload: {
+        mode,
+        cursorOffset: cursorByMode[mode],
+        attrName,
+        isNested,
+        parentName,
+      },
+    });
   };
 
   const handleInsertNested = (nestedName: string, parentName: string) => {
@@ -187,6 +195,13 @@ function AttributesPage() {
           </Button>
         </div>
       </div>
+      {templateWarnings.length > 0 && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-amber-900 text-sm">
+          {templateWarnings.map((warning) => (
+            <p key={warning}>{warning}</p>
+          ))}
+        </div>
+      )}
 
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden">
@@ -204,15 +219,47 @@ function AttributesPage() {
           <TemplateBuilder
             ref={builderRef}
             repeatAttributeOptions={repeatAttributeOptions}
-            onRepeatContextChange={setBuilderRepeatContext}
+            currentRepeatContext={builderRepeatContext}
+            onInsertForBlock={(parentName, nestedAttributes) => {
+              dispatchTemplateCommand({
+                type: "insert_for_block",
+                payload: {
+                  parentName,
+                  nestedAttributes,
+                  cursorOffset: cursorByMode.builder,
+                },
+              });
+            }}
+            onClearRepeatContext={() => {
+              dispatchTemplateCommand({
+                type: "set_builder_context",
+                payload: { context: null },
+              });
+            }}
             initialContent={jinjaText}
-            onContentChange={setJinjaText}
+            onContentChange={(text) => {
+              dispatchTemplateCommand({
+                type: "set_from_advanced_text",
+                payload: { text },
+              });
+            }}
+            onCursorChange={(offset) =>
+              setCursorByMode((current) => ({ ...current, builder: offset }))
+            }
           />
         ) : (
           <TemplateEditor
             ref={editorRef}
             initialContent={jinjaText}
-            onContentChange={setJinjaText}
+            onContentChange={(text) => {
+              dispatchTemplateCommand({
+                type: "set_from_advanced_text",
+                payload: { text },
+              });
+            }}
+            onCursorChange={(offset) =>
+              setCursorByMode((current) => ({ ...current, advanced: offset }))
+            }
           />
         )}
       </div>

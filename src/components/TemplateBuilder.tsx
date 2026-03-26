@@ -9,13 +9,9 @@ import {
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import EditorFormattingToolbar from "@/components/common/EditorFormattingToolbar";
+import type { BuilderRepeatContext } from "@/types/template-commands";
 
 export interface TemplateBuilderRef {
-  insertAttribute: (
-    attrName: string,
-    isNested?: boolean,
-    parentName?: string,
-  ) => void;
   getText: () => string;
   handleCopy: () => Promise<void>;
   handleDownloadTxt: () => void;
@@ -27,16 +23,14 @@ export interface RepeatAttributeOption {
   nestedAttributes: string[];
 }
 
-export interface BuilderRepeatContext {
-  parentName: string;
-  nestedAttributes: string[];
-}
-
 interface TemplateBuilderProps {
   repeatAttributeOptions: RepeatAttributeOption[];
-  onRepeatContextChange: (context: BuilderRepeatContext | null) => void;
+  currentRepeatContext: BuilderRepeatContext | null;
+  onInsertForBlock: (parentName: string, nestedAttributes: string[]) => void;
+  onClearRepeatContext: () => void;
   initialContent: string;
   onContentChange: (text: string) => void;
+  onCursorChange: (offset: number) => void;
 }
 
 export const TemplateBuilder = forwardRef<
@@ -44,124 +38,95 @@ export const TemplateBuilder = forwardRef<
   TemplateBuilderProps
 >(
   (
-    { repeatAttributeOptions, onRepeatContextChange, initialContent, onContentChange },
+    {
+      repeatAttributeOptions,
+      currentRepeatContext,
+      onInsertForBlock,
+      onClearRepeatContext,
+      initialContent,
+      onContentChange,
+      onCursorChange,
+    },
     ref,
   ) => {
     const isSyncingFromStoreRef = useRef(false);
     const onContentChangeRef = useRef(onContentChange);
+    const onCursorChangeRef = useRef(onCursorChange);
 
     useEffect(() => {
       onContentChangeRef.current = onContentChange;
     }, [onContentChange]);
 
-  const editor = useEditor({
-    extensions: [StarterKit],
-    content: initialContent,
-    onUpdate: ({ editor: updatedEditor }) => {
-      if (isSyncingFromStoreRef.current) return;
-      onContentChangeRef.current(updatedEditor.getText());
-    },
-    editorProps: {
-      attributes: {
-        class:
-          "min-h-full w-full max-w-4xl mx-auto bg-white rounded-lg border border-gray-200 p-6 focus:outline-none focus:ring-2 focus:ring-[var(--drt-green)] focus:border-transparent prose prose-sm",
-        style: "white-space: pre-wrap; word-wrap: break-word;",
+    useEffect(() => {
+      onCursorChangeRef.current = onCursorChange;
+    }, [onCursorChange]);
+
+    const editor = useEditor({
+      extensions: [StarterKit],
+      content: initialContent,
+      onUpdate: ({ editor: updatedEditor }) => {
+        if (isSyncingFromStoreRef.current) return;
+        onContentChangeRef.current(updatedEditor.getText());
       },
-    },
-  });
+      onSelectionUpdate: ({ editor: updatedEditor }) => {
+        const { doc, selection } = updatedEditor.state;
+        const cursorOffset = doc.textBetween(0, selection.anchor, "\n", "\n").length;
+        onCursorChangeRef.current(cursorOffset);
+      },
+      editorProps: {
+        attributes: {
+          class:
+            "min-h-full w-full max-w-4xl mx-auto bg-white rounded-lg border border-gray-200 p-6 focus:outline-none focus:ring-2 focus:ring-[var(--drt-green)] focus:border-transparent prose prose-sm",
+          style: "white-space: pre-wrap; word-wrap: break-word;",
+        },
+      },
+    });
 
-  const setContentFromStore = useCallback(
-    (text: string) => {
-      if (!editor) return;
-      if (editor.getText() === text) return;
+    const setContentFromStore = useCallback(
+      (text: string) => {
+        if (!editor) return;
+        if (editor.getText() === text) return;
 
-      isSyncingFromStoreRef.current = true;
-      editor.commands.clearContent(true);
-      if (text) {
-        editor.commands.insertContent(text);
-      }
-      isSyncingFromStoreRef.current = false;
-    },
-    [editor],
-  );
-
-  useEffect(() => {
-    setContentFromStore(initialContent);
-  }, [initialContent, setContentFromStore]);
-
-  const getText = () => editor?.getText() ?? "";
-
-  const insertAttribute = (
-    attrName: string,
-    isNested = false,
-    parentName?: string,
-  ) => {
-    if (!editor) return;
-
-    const fullAttrName =
-      isNested && parentName ? `${parentName}.${attrName}` : attrName;
-    const activeRepeatParent = currentRepeatContext?.parentName;
-
-    if (activeRepeatParent) {
-      let itemFieldName = attrName;
-
-      if (fullAttrName.startsWith(`${activeRepeatParent}.`)) {
-        itemFieldName = fullAttrName.replace(`${activeRepeatParent}.`, "");
-      }
-
-      editor.chain().focus().insertContent(`[item.${itemFieldName}]`).run();
-      return;
-    }
-
-    editor.chain().focus().insertContent(`[${fullAttrName}]`).run();
-  };
-
-  const handleRepeat = (event?: React.MouseEvent) => {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-    setIsRepeatModalOpen(true);
-  };
-
-  const [isRepeatModalOpen, setIsRepeatModalOpen] = useState(false);
-  const [selectedRepeatAttr, setSelectedRepeatAttr] = useState("");
-  const [currentRepeatContext, setCurrentRepeatContext] =
-    useState<BuilderRepeatContext | null>(null);
-
-  const createRepeatSection = () => {
-    if (!editor || !selectedRepeatAttr) return;
-
-    const selectedOption = repeatAttributeOptions.find(
-      (option) => option.name === selectedRepeatAttr,
+        isSyncingFromStoreRef.current = true;
+        editor.commands.clearContent(true);
+        if (text) {
+          editor.commands.insertContent(text);
+        }
+        isSyncingFromStoreRef.current = false;
+      },
+      [editor],
     );
-    if (!selectedOption) return;
 
-    const block = [
-      `[Start group of attributes: ${selectedOption.name}]`,
-      `This section will repeat for every item in [${selectedOption.name}].`,
-      "Write here... insert sub-fields before ending the section.\n",
+    useEffect(() => {
+      setContentFromStore(initialContent);
+    }, [initialContent, setContentFromStore]);
 
-      "[End group of attributes]",
-    ].join("\n");
+    const getText = () => editor?.getText() ?? "";
 
-    editor.chain().focus().insertContent(block).run();
-
-    const context: BuilderRepeatContext = {
-      parentName: selectedOption.name,
-      nestedAttributes: selectedOption.nestedAttributes,
+    const handleRepeat = (event?: React.MouseEvent) => {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      setIsRepeatModalOpen(true);
     };
-    setCurrentRepeatContext(context);
-    onRepeatContextChange(context);
 
-    setIsRepeatModalOpen(false);
-    setSelectedRepeatAttr("");
-  };
+    const [isRepeatModalOpen, setIsRepeatModalOpen] = useState(false);
+    const [selectedRepeatAttr, setSelectedRepeatAttr] = useState("");
 
-  const clearRepeatContext = () => {
-    setCurrentRepeatContext(null);
-    onRepeatContextChange(null);
-  };
+    const createRepeatSection = () => {
+      if (!selectedRepeatAttr) return;
+
+      const selectedOption = repeatAttributeOptions.find(
+        (option) => option.name === selectedRepeatAttr,
+      );
+      if (!selectedOption) return;
+
+      onInsertForBlock(selectedOption.name, selectedOption.nestedAttributes);
+
+      setIsRepeatModalOpen(false);
+      setSelectedRepeatAttr("");
+    };
 
   const getDatedFilename = (extension: "txt" | "md"): string => {
     const dateStamp = new Date().toISOString().slice(0, 10);
@@ -193,7 +158,6 @@ export const TemplateBuilder = forwardRef<
   };
 
   useImperativeHandle(ref, () => ({
-    insertAttribute,
     getText,
     handleCopy,
     handleDownloadTxt,
@@ -229,7 +193,7 @@ export const TemplateBuilder = forwardRef<
               </p>
             </div>
             <button
-              onClick={clearRepeatContext}
+              onClick={onClearRepeatContext}
               className="px-2 py-1 border border-emerald-400 text-emerald-900 rounded text-xs hover:bg-emerald-100"
             >
               Exit repeat context
