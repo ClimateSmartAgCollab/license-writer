@@ -1,4 +1,10 @@
-import { forwardRef, useImperativeHandle } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+} from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { defaultMarkdownSerializer } from "prosemirror-markdown";
@@ -25,16 +31,28 @@ export interface TemplateEditorRef {
 }
 
 interface TemplateEditorProps {
-  // Props can be added here if needed in the future
+  initialContent: string;
+  onContentChange: (text: string) => void;
 }
 
 export const TemplateEditor = forwardRef<
   TemplateEditorRef,
   TemplateEditorProps
->((_props, ref) => {
+>(({ initialContent, onContentChange }, ref) => {
+  const isSyncingFromStoreRef = useRef(false);
+  const onContentChangeRef = useRef(onContentChange);
+
+  useEffect(() => {
+    onContentChangeRef.current = onContentChange;
+  }, [onContentChange]);
+
   const editor = useEditor({
     extensions: [StarterKit],
-    content: "",
+    content: initialContent,
+    onUpdate: ({ editor: updatedEditor }) => {
+      if (isSyncingFromStoreRef.current) return;
+      onContentChangeRef.current(updatedEditor.getText());
+    },
     editorProps: {
       attributes: {
         class:
@@ -43,6 +61,25 @@ export const TemplateEditor = forwardRef<
       },
     },
   });
+
+  const setContentFromStore = useCallback(
+    (text: string) => {
+      if (!editor) return;
+      if (editor.getText() === text) return;
+
+      isSyncingFromStoreRef.current = true;
+      editor.commands.clearContent(true);
+      if (text) {
+        editor.commands.insertContent(text);
+      }
+      isSyncingFromStoreRef.current = false;
+    },
+    [editor],
+  );
+
+  useEffect(() => {
+    setContentFromStore(initialContent);
+  }, [initialContent, setContentFromStore]);
 
   // Keep all matching/index checks in plain-text coordinates.
   const getPlainText = (): string => {

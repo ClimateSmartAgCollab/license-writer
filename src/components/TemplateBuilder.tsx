@@ -1,4 +1,11 @@
-import { forwardRef, useImperativeHandle, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import EditorFormattingToolbar from "@/components/common/EditorFormattingToolbar";
@@ -28,15 +35,32 @@ export interface BuilderRepeatContext {
 interface TemplateBuilderProps {
   repeatAttributeOptions: RepeatAttributeOption[];
   onRepeatContextChange: (context: BuilderRepeatContext | null) => void;
+  initialContent: string;
+  onContentChange: (text: string) => void;
 }
 
 export const TemplateBuilder = forwardRef<
   TemplateBuilderRef,
   TemplateBuilderProps
->(({ repeatAttributeOptions, onRepeatContextChange }, ref) => {
+>(
+  (
+    { repeatAttributeOptions, onRepeatContextChange, initialContent, onContentChange },
+    ref,
+  ) => {
+    const isSyncingFromStoreRef = useRef(false);
+    const onContentChangeRef = useRef(onContentChange);
+
+    useEffect(() => {
+      onContentChangeRef.current = onContentChange;
+    }, [onContentChange]);
+
   const editor = useEditor({
     extensions: [StarterKit],
-    content: "",
+    content: initialContent,
+    onUpdate: ({ editor: updatedEditor }) => {
+      if (isSyncingFromStoreRef.current) return;
+      onContentChangeRef.current(updatedEditor.getText());
+    },
     editorProps: {
       attributes: {
         class:
@@ -45,6 +69,25 @@ export const TemplateBuilder = forwardRef<
       },
     },
   });
+
+  const setContentFromStore = useCallback(
+    (text: string) => {
+      if (!editor) return;
+      if (editor.getText() === text) return;
+
+      isSyncingFromStoreRef.current = true;
+      editor.commands.clearContent(true);
+      if (text) {
+        editor.commands.insertContent(text);
+      }
+      isSyncingFromStoreRef.current = false;
+    },
+    [editor],
+  );
+
+  useEffect(() => {
+    setContentFromStore(initialContent);
+  }, [initialContent, setContentFromStore]);
 
   const getText = () => editor?.getText() ?? "";
 

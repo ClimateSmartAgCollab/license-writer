@@ -12,8 +12,10 @@ interface AppContextType {
   // License state
   attributes: string[];
   rawJsonData: OCAPackage | null;
+  jinjaText: string;
   setAttributes: (attributes: string[]) => void;
   setRawJsonData: (data: OCAPackage | null) => void;
+  setJinjaText: (text: string) => void;
 }
 
 
@@ -33,12 +35,15 @@ function AppProvider({ children }: { children: ReactNode }) {
   // License state
   const [attributes, setAttributes] = useState<string[]>([]);
   const [rawJsonData, setRawJsonData] = useState<OCAPackage | null>(null);
+  const [jinjaText, setJinjaText] = useState("");
 
   const value: AppContextType = {
     attributes,
     rawJsonData,
+    jinjaText,
     setAttributes,
     setRawJsonData,
+    setJinjaText,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

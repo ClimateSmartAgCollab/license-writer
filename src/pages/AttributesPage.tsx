@@ -19,7 +19,7 @@ import {
 } from "@/components/TemplateBuilder";
 
 function AttributesPage() {
-  const { rawJsonData } = useApp();
+  const { rawJsonData, jinjaText, setJinjaText } = useApp();
   const navigate = useNavigate();
   const editorRef = useRef<TemplateEditorRef>(null);
   const builderRef = useRef<TemplateBuilderRef>(null);
@@ -205,9 +205,15 @@ function AttributesPage() {
             ref={builderRef}
             repeatAttributeOptions={repeatAttributeOptions}
             onRepeatContextChange={setBuilderRepeatContext}
+            initialContent={jinjaText}
+            onContentChange={setJinjaText}
           />
         ) : (
-          <TemplateEditor ref={editorRef} />
+          <TemplateEditor
+            ref={editorRef}
+            initialContent={jinjaText}
+            onContentChange={setJinjaText}
+          />
         )}
       </div>
 
