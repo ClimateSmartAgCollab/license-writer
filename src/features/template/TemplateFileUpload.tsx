@@ -1,16 +1,11 @@
-import { useState } from "react";
 import FileUpload from "@/components/common/FileUpload";
 import { TbLicense, TbUpload } from "react-icons/tb";
 
 function TemplateFileUpload() {
-  const [file, setFile] = useState<File | null>(null);
-
   const handleFileSelect = (selectedFile: File | null) => {
-    setFile(selectedFile);
-    // Add your template-specific file processing logic here 
+    // TODO: In the next step, parse raw template text and dispatch to template store.
     if (selectedFile) {
       console.log("Template file selected:", selectedFile.name);
-      // Process the template file (e.g., parse, validate, etc.)
     }
   };
 
@@ -19,9 +14,9 @@ function TemplateFileUpload() {
       title="License Template (Optional)"
       icon={<TbLicense />}
       uploadIcon={<TbUpload />}
-      description="Upload your existing license template that you want to update/edit"
+      description="Upload an existing template source file to continue editing it in Builder/Advanced mode."
       onFileSelect={handleFileSelect}
-      accept=".json,.template"
+      accept=".txt,.md,.template,.jinja,.j2"
     />
   );
 }
