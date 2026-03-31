@@ -139,6 +139,22 @@ function FileUpload({
     [onFileSelect]
   );
 
+  const acceptConfig = accept
+    ? accept.split(",").reduce((acc, ext) => {
+        const trimmedExt = ext.trim().toLowerCase();
+        if (!trimmedExt) return acc;
+
+        const mimeType =
+          trimmedExt === ".json" ? "application/json" : "text/plain";
+
+        if (!acc[mimeType]) {
+          acc[mimeType] = [];
+        }
+        acc[mimeType].push(trimmedExt);
+        return acc;
+      }, {} as Record<string, string[]>)
+    : undefined;
+
   const {
     getRootProps,
     getInputProps,
@@ -147,24 +163,7 @@ function FileUpload({
     isDragReject,
   } = useDropzone({
     onDrop,
-    accept: accept
-      ? accept.split(",").reduce((acc, ext) => {
-          const trimmedExt = ext.trim();
-          const mimeType =
-            trimmedExt === ".json"
-              ? "application/json"
-              : trimmedExt === ".jinja"
-              ? "application/json"
-              : undefined;
-          if (mimeType) {
-            if (!acc[mimeType]) {
-              acc[mimeType] = [];
-            }
-            acc[mimeType].push(trimmedExt);
-          }
-          return acc;
-        }, {} as Record<string, string[]>)
-      : undefined,
+    accept: acceptConfig,
     multiple: false,
     noClick: false,
     noKeyboard: false,
