@@ -182,6 +182,7 @@ export function AttributeDetailsModal({
                           </code>
                         </div>
                         <Button
+                          onMouseDown={(event) => event.preventDefault()}
                           onClick={() => onInsert(nested.name, true, attribute.name)}
                           className="bg-[var(--drt-green)] text-white hover:bg-[var(--drt-green-dark)] px-4 py-2 whitespace-nowrap"
                         >
@@ -200,6 +201,7 @@ export function AttributeDetailsModal({
           {!isRefType && (
             <div className="pt-4 border-t border-gray-200">
               <Button
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={() => onInsert(attribute.name)}
                 className="w-full bg-[var(--drt-green)] text-white hover:bg-[var(--drt-green-dark)] py-3 text-base"
               >

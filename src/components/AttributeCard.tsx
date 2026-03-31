@@ -45,6 +45,7 @@ export function AttributeCard({
         </button>
         {!isRefType && (
           <button
+            onMouseDown={(event) => event.preventDefault()}
             onClick={onInsert}
             className="flex items-center gap-1 px-3 py-1 bg-[var(--drt-green)] text-white text-sm rounded hover:bg-[var(--drt-green-dark)] transition-colors"
           >
@@ -75,6 +76,7 @@ export function AttributeCard({
                     )}
                   </div>
                   <button
+                    onMouseDown={(event) => event.preventDefault()}
                     onClick={() => onInsertNested(nested.name)}
                     className="px-2 py-1 bg-[var(--drt-green)] text-white text-xs rounded hover:bg-[var(--drt-green-dark)] transition-colors"
                   >

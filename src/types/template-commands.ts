@@ -1,4 +1,4 @@
-import type { TemplateWarning } from "@/types/template-ast";
+import type { TemplateDocument, TemplateWarning } from "@/types/template-ast";
 
 export type TemplateMode = "builder" | "advanced";
 
@@ -15,6 +15,9 @@ export interface InsertVariableCommand {
     attrName: string;
     isNested?: boolean;
     parentName?: string;
+    basePlainText?: string;
+    /** Per UI gesture; duplicate dispatches with the same nonce are ignored (fixes double-apply → wrong length / destructive sync). */
+    insertNonce?: string;
   };
 }
 
@@ -24,6 +27,8 @@ export interface InsertForBlockCommand {
     cursorOffset: number;
     parentName: string;
     nestedAttributes: string[];
+    basePlainText?: string;
+    insertNonce?: string;
   };
 }
 
@@ -41,14 +46,26 @@ export interface SetFromAdvancedTextCommand {
   };
 }
 
+export interface SetFromBuilderTextCommand {
+  type: "set_from_builder_text";
+  payload: {
+    text: string;
+  };
+}
+
 export type TemplateCommand =
   | InsertVariableCommand
   | InsertForBlockCommand
   | SetBuilderContextCommand
-  | SetFromAdvancedTextCommand;
+  | SetFromAdvancedTextCommand
+  | SetFromBuilderTextCommand;
 
 export interface TemplateState {
+  document: TemplateDocument;
   jinjaText: string;
+  builderText: string;
   warnings: TemplateWarning[];
+  isBuilderLimited: boolean;
+  builderWarning: TemplateWarning | null;
   builderContext: BuilderRepeatContext | null;
 }

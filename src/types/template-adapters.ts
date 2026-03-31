@@ -1,27 +1,39 @@
 import type { BuilderRepeatContext } from "@/types/template-commands";
-import type { TemplateAstDocument, TemplateWarning } from "@/types/template-ast";
+import type { TemplateDocument, TemplateWarning } from "@/types/template-ast";
 
 export interface InsertVariableInput {
-  text: string;
+  document: TemplateDocument;
   attrName: string;
   cursorOffset: number;
   isNested?: boolean;
   parentName?: string;
+  /** Editor plain text at click time; avoids stale store when React has not applied the latest onChange yet. */
+  basePlainText?: string;
 }
 
 export interface JinjaTemplateAdapter {
-  parse: (text: string) => TemplateAstDocument;
-  print: (doc: TemplateAstDocument) => string;
-  insertVariable: (input: InsertVariableInput) => string;
-  findWarnings: (text: string) => TemplateWarning[];
+  parse: (text: string) => TemplateDocument;
+  print: (doc: TemplateDocument) => string;
+  insertVariable: (input: InsertVariableInput) => TemplateDocument;
+  findWarnings: (doc: TemplateDocument) => TemplateWarning[];
 }
 
+export type BuilderProjection =
+  | { isLimited: false; text: string }
+  | { isLimited: true; text: string; warning: TemplateWarning };
+
 export interface BuilderTemplateAdapter {
-  insertVariable: (input: InsertVariableInput, context: BuilderRepeatContext | null) => string;
+  parse: (text: string) => TemplateDocument;
+  print: (doc: TemplateDocument) => BuilderProjection;
+  insertVariable: (
+    input: InsertVariableInput,
+    context: BuilderRepeatContext | null,
+  ) => TemplateDocument;
   insertForBlock: (
-    text: string,
+    document: TemplateDocument,
     cursorOffset: number,
     parentName: string,
-  ) => string;
+    basePlainText?: string,
+  ) => TemplateDocument;
   getRepeatContextHint: (context: BuilderRepeatContext | null) => string | null;
 }

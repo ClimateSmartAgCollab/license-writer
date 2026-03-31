@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -27,7 +28,10 @@ interface AppContextType {
   attributes: string[];
   rawJsonData: OCAPackage | null;
   jinjaText: string;
+  builderText: string;
   templateWarnings: string[];
+  isBuilderLimited: boolean;
+  builderWarning: string | null;
   builderRepeatContext: BuilderRepeatContext | null;
   setAttributes: (attributes: string[]) => void;
   setRawJsonData: (data: OCAPackage | null) => void;
@@ -52,8 +56,24 @@ function AppProvider({ children }: { children: ReactNode }) {
   const [attributes, setAttributes] = useState<string[]>([]);
   const [rawJsonData, setRawJsonData] = useState<OCAPackage | null>(null);
   const [templateState, setTemplateState] = useState(initialTemplateState);
+  const processedInsertNoncesRef = useRef<Set<string>>(new Set());
 
   const dispatchTemplateCommand = useCallback((command: TemplateCommand) => {
+    if (command.type === "insert_variable" || command.type === "insert_for_block") {
+      const nonce = command.payload.insertNonce;
+      if (nonce) {
+        if (processedInsertNoncesRef.current.has(nonce)) {
+          return;
+        }
+        if (processedInsertNoncesRef.current.size >= 64) {
+          const oldest = processedInsertNoncesRef.current.keys().next().value;
+          if (oldest !== undefined) {
+            processedInsertNoncesRef.current.delete(oldest);
+          }
+        }
+        processedInsertNoncesRef.current.add(nonce);
+      }
+    }
     setTemplateState((current) => templateReducer(current, command));
   }, []);
 
@@ -61,9 +81,16 @@ function AppProvider({ children }: { children: ReactNode }) {
     attributes,
     rawJsonData,
     jinjaText: templateState.jinjaText,
+    builderText: templateState.builderText,
     templateWarnings: templateState.warnings.map((warning) =>
       warning.detail ? `${warning.message} (${warning.detail})` : warning.message,
     ),
+    isBuilderLimited: templateState.isBuilderLimited,
+    builderWarning: templateState.builderWarning
+      ? templateState.builderWarning.detail
+        ? `${templateState.builderWarning.message} (${templateState.builderWarning.detail})`
+        : templateState.builderWarning.message
+      : null,
     builderRepeatContext: templateState.builderContext,
     setAttributes,
     setRawJsonData,
