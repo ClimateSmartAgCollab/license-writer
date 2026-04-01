@@ -95,7 +95,7 @@ function InitialTemplateUpload() {
       {file && !error && !isProcessing && (
         <div className="flex flex-col items-center gap-2">
           <Button
-            onClick={() => navigate("/attributes")}
+            onClick={() => navigate("/template-editor")}
             className="bg-[var(--drt-green)] text-white hover:bg-[var(--drt-green-dark)] px-6 py-2"
           >
             <span>Next</span>

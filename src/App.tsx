@@ -15,6 +15,7 @@ import {
   templateReducer,
 } from "@/features/template/state/templateStore";
 import AttributesPage from "@/pages/AttributesPage";
+import TemplateEditorPage from "@/pages/TemplateEditorPage";
 import type { OCAPackage } from "@/types/oca";
 import type {
   BuilderRepeatContext,
@@ -119,6 +120,7 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/attributes" element={<AttributesPage />} />
+          <Route path="/template-editor" element={<TemplateEditorPage />} />
         </Routes>
       </BrowserRouter>
     </AppProvider>
