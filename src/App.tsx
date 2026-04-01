@@ -23,7 +23,6 @@ import type {
 } from "@/types/templateStateAndCommands";
 import "./App.css";
 
-
 interface AppContextType {
   // License state
   attributes: string[];
@@ -39,9 +38,7 @@ interface AppContextType {
   dispatchTemplateCommand: (command: TemplateCommand) => void;
 }
 
-
 const AppContext = createContext<AppContextType | undefined>(undefined);
-
 
 export function useApp(): AppContextType {
   const context = useContext(AppContext);
@@ -51,7 +48,6 @@ export function useApp(): AppContextType {
   return context;
 }
 
-
 function AppProvider({ children }: { children: ReactNode }) {
   // License state
   const [attributes, setAttributes] = useState<string[]>([]);
@@ -60,7 +56,10 @@ function AppProvider({ children }: { children: ReactNode }) {
   const processedInsertNoncesRef = useRef<Set<string>>(new Set());
 
   const dispatchTemplateCommand = useCallback((command: TemplateCommand) => {
-    if (command.type === "insert_variable" || command.type === "insert_for_block") {
+    if (
+      command.type === "insert_variable" ||
+      command.type === "insert_for_block"
+    ) {
       const nonce = command.payload.insertNonce;
       if (nonce) {
         if (processedInsertNoncesRef.current.has(nonce)) {
@@ -84,7 +83,9 @@ function AppProvider({ children }: { children: ReactNode }) {
     jinjaText: templateState.jinjaText,
     builderText: templateState.builderText,
     templateWarnings: templateState.warnings.map((warning) =>
-      warning.detail ? `${warning.message} (${warning.detail})` : warning.message,
+      warning.detail
+        ? `${warning.message} (${warning.detail})`
+        : warning.message,
     ),
     isBuilderLimited: templateState.isBuilderLimited,
     builderWarning: templateState.builderWarning
@@ -106,6 +107,26 @@ function HomePage() {
     <>
       <Header />
       <main className="p-4 lg:p-12 flex flex-col gap-6 lg:gap-10">
+        <section
+          className="mx-auto max-w-3xl w-full rounded-lg border border-gray-200 bg-gray-50/80 px-4 py-3 text-sm text-gray-800 text-center"
+          aria-label="How the two upload options work"
+        >
+          <p className="font-bold text-[var(--drt-green)] mb-2 text-2xl">
+            Two ways to continue
+          </p>
+          <ul className="inline-block list-disc pl-5 space-y-1.5 text-left">
+            <li>
+              <span className="font-medium">OCA package</span> — After you
+              upload and choose Next, you go to the attribute-assisted template,
+              where you can insert fields from your schema.
+            </li>
+            <li>
+              <span className="font-medium">License template</span> —
+              Upload an existing template and choose Next to open the
+              template-only editor. No OCA package is required.
+            </li>
+          </ul>
+        </section>
         <OCAPackageUpload />
         <InitialTemplateUpload />
       </main>
