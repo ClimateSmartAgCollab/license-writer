@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { TbSearch } from "react-icons/tb";
-import { type AttributeInfo } from "@/lib/utils";
+import { type AttributeInfo } from "@/lib/oca/ocaPackageAttributes";
 import { AttributeCard } from "./AttributeCard";
 
 interface AttributeListSidebarProps {

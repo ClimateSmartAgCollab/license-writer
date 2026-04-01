@@ -1,6 +1,6 @@
 import { builderAdapter } from "@/lib/template/builderAdapter";
 import { jinjaAdapter } from "@/lib/template/jinjaAdapter";
-import type { TemplateCommand, TemplateState } from "@/types/template-commands";
+import type { TemplateCommand, TemplateState } from "@/types/templateStateAndCommands";
 
 const emptyDocument = jinjaAdapter.parse("");
 

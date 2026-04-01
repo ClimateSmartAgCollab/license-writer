@@ -1,4 +1,4 @@
-import type { JinjaTemplateAdapter, InsertVariableInput } from "@/types/template-adapters";
+import type { JinjaTemplateAdapter, InsertVariableInput } from "@/types/templateAdapterInterfaces";
 import type {
   TemplateDocument,
   TemplateForBlockNode,

@@ -13,11 +13,11 @@ import EditorFormattingToolbar from "@/components/common/EditorFormattingToolbar
 import {
   applyPlainTextSurgeryIfPossible,
   tryApplyVerifiedPlainInsert,
-} from "@/lib/editor/plainTextSurgerySync";
+} from "@/lib/editor/editorTiptapPlainTextInsertSync";
 import {
   plainTextLengthBeforePos,
   pmPosFromPlainTextOffset,
-} from "@/lib/editor/tiptapPlainTextOffset";
+} from "@/lib/editor/editorTiptapPlainTextOffset";
 import type { JSONContent } from "@tiptap/core";
 
 const EDITOR_BLOCK_SEPARATOR = "\n";
@@ -31,7 +31,7 @@ function mapPlainTextOffsetToPmPos(
   return pmPosFromPlainTextOffset(ed, textOffset, EDITOR_BLOCK_SEPARATOR);
 }
 
-export interface TemplateEditorRef {
+export interface AdvancedTemplateEditorRef {
   getText: () => string;
   getTipTapJSON: () => JSONContent;
   getPlainTextCursorOffset: () => number;
@@ -41,7 +41,7 @@ export interface TemplateEditorRef {
   handleDownloadMarkdown: () => void;
 }
 
-interface TemplateEditorProps {
+interface AdvancedTemplateEditorProps {
   initialContent: string;
   onContentChange: (text: string) => void;
   onCursorChange: (offset: number) => void;
@@ -49,9 +49,9 @@ interface TemplateEditorProps {
   initialDocJson?: JSONContent | null;
 }
 
-export const TemplateEditor = forwardRef<
-  TemplateEditorRef,
-  TemplateEditorProps
+export const AdvancedTemplateEditor = forwardRef<
+  AdvancedTemplateEditorRef,
+  AdvancedTemplateEditorProps
 >(({ initialContent, onContentChange, onCursorChange, pendingPlainInsertRef, initialDocJson }, ref) => {
   const mountContentRef = useRef<string | JSONContent | null>(null);
   if (mountContentRef.current === null) {
@@ -307,4 +307,4 @@ export const TemplateEditor = forwardRef<
   );
 });
 
-TemplateEditor.displayName = "TemplateEditor";
+AdvancedTemplateEditor.displayName = "AdvancedTemplateEditor";

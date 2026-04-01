@@ -1,4 +1,4 @@
-import type { BuilderRepeatContext } from "@/types/template-commands";
+import type { BuilderRepeatContext } from "@/types/templateStateAndCommands";
 import type { TemplateDocument, TemplateWarning } from "@/types/template-ast";
 
 export interface InsertVariableInput {

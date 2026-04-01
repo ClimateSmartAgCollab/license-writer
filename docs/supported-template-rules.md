@@ -1,5 +1,28 @@
 # Supported Template Rules
 
+## Module map (source layout)
+
+Short guide to where responsibilities live. Names align with `TemplateMode`: **builder** (guided brackets) and **advanced** (Jinja template text).
+
+| Area | Path | Responsibility |
+|------|------|------------------|
+| OCA types | `src/types/oca.ts` | OCA Package JSON shapes |
+| Template AST | `src/types/template-ast.ts` | Parsed template document model |
+| State & commands | `src/types/templateStateAndCommands.ts` | Reducer commands, `TemplateState`, `TemplateMode`, builder repeat context |
+| Adapter contracts | `src/types/templateAdapterInterfaces.ts` | `JinjaTemplateAdapter` / `BuilderTemplateAdapter` interfaces |
+| Jinja adapter | `src/lib/template/jinjaAdapter.ts` | Advanced (Jinja) parse / print / insert |
+| Builder adapter | `src/lib/template/builderAdapter.ts` | Builder mode projection and edits |
+| Template store | `src/features/template/state/templateStore.ts` | `templateReducer`, dual-text state |
+| OCA upload UI | `src/features/oca/OCAPackageUpload.tsx` | Load OCA Package JSON → attributes |
+| Initial template upload | `src/features/template/InitialTemplateUpload.tsx` | Seed template text from a file |
+| Advanced editor | `src/components/AdvancedTemplateEditor.tsx` | TipTap for **advanced** Jinja text |
+| Builder editor | `src/components/BuilderTemplateEditor.tsx` | TipTap for **builder** mode text |
+| Builder ↔ Jinja JSON | `src/lib/editor/editorTiptapBuilderJinjaJson.ts` | Map TipTap JSON text nodes between modes |
+| Plain offset mapping | `src/lib/editor/editorTiptapPlainTextOffset.ts` | Plain-text offset ↔ ProseMirror position |
+| Store ↔ editor sync | `src/lib/editor/editorTiptapPlainTextInsertSync.ts` | Verified inserts and single edit sync |
+| OCA attribute helpers | `src/lib/oca/ocaPackageAttributes.ts` | Extract attributes, schema levels, form order |
+| UI `cn()` | `src/lib/utils.ts` | Tailwind class merge helper only |
+
 ## Purpose and Scope
 
 This template system intentionally supports a minimal Jinja-style subset for license template authoring and export.

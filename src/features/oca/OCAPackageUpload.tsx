@@ -3,13 +3,17 @@ import { useNavigate } from "react-router-dom";
 import FileUpload from "@/components/common/FileUpload";
 import { TbPackage, TbUpload, TbArrowRight } from "react-icons/tb";
 import { useApp } from "@/App";
-import { extractAttributesFromOCA, calculateSchemaLevels, validateSchemaLevels } from "@/lib/utils";
+import {
+  extractAttributesFromOCA,
+  calculateSchemaLevels,
+  validateSchemaLevels,
+} from "@/lib/oca/ocaPackageAttributes";
 import type { OCAPackage } from "@/types/oca";
 import { Button } from "@/components/ui/button";
 
-const MAX_SCHEMA_LEVEL = 2; 
+const MAX_SCHEMA_LEVEL = 2;
 
-function LicenseFileUpload() {
+function OCAPackageUpload() {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -19,7 +23,6 @@ function LicenseFileUpload() {
 
   const hasExistingData = attributes.length > 0 || rawJsonData !== null;
 
-  // Calculate schema levels when component loads with existing data
   useEffect(() => {
     if (rawJsonData && !file) {
       const levels = calculateSchemaLevels(rawJsonData);
@@ -43,7 +46,7 @@ function LicenseFileUpload() {
       let parsedData: unknown;
       try {
         parsedData = JSON.parse(fileContent);
-      } catch (parseError) {
+      } catch {
         throw new Error("Invalid JSON file. Please upload a valid JSON file.");
       }
 
@@ -55,7 +58,7 @@ function LicenseFileUpload() {
 
       if (extractedAttributes.length === 0) {
         throw new Error(
-          "No attributes found in the OCA Package. Please check the file structure."
+          "No attributes found in the OCA Package. Please check the file structure.",
         );
       }
 
@@ -69,11 +72,10 @@ function LicenseFileUpload() {
         throw new Error(validation.error || "Schema validation failed");
       }
 
-      // Store in context
       setAttributes(extractedAttributes);
       setRawJsonData(ocaPackage);
 
-      console.log("License file processed successfully:", {
+      console.log("OCA package processed successfully:", {
         fileName: selectedFile.name,
         attributesCount: extractedAttributes.length,
         schemaLevels: levels,
@@ -83,14 +85,13 @@ function LicenseFileUpload() {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to process file";
       setError(errorMessage);
-      console.error("Error processing license file:", err);
+      console.error("Error processing OCA package:", err);
     } finally {
       setIsProcessing(false);
     }
   };
 
-
-  const readFileAsText = (file: File): Promise<string> => {
+  const readFileAsText = (inputFile: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (event) => {
@@ -103,13 +104,12 @@ function LicenseFileUpload() {
       reader.onerror = () => {
         reject(new Error("Error reading file"));
       };
-      reader.readAsText(file);
+      reader.readAsText(inputFile);
     });
   };
 
   return (
     <div className="flex flex-col gap-4">
-
       <FileUpload
         title="OCA Package"
         icon={<TbPackage />}
@@ -155,5 +155,4 @@ function LicenseFileUpload() {
   );
 }
 
-export default LicenseFileUpload;
-
+export default OCAPackageUpload;

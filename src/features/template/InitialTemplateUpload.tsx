@@ -5,7 +5,7 @@ import FileUpload from "@/components/common/FileUpload";
 import { TbArrowRight, TbLicense, TbUpload } from "react-icons/tb";
 import { Button } from "@/components/ui/button";
 
-function TemplateFileUpload() {
+function InitialTemplateUpload() {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -107,5 +107,4 @@ function TemplateFileUpload() {
   );
 }
 
-export default TemplateFileUpload;
-
+export default InitialTemplateUpload;

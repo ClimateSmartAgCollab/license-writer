@@ -13,12 +13,12 @@ import EditorFormattingToolbar from "@/components/common/EditorFormattingToolbar
 import {
   applyPlainTextSurgeryIfPossible,
   tryApplyVerifiedPlainInsert,
-} from "@/lib/editor/plainTextSurgerySync";
+} from "@/lib/editor/editorTiptapPlainTextInsertSync";
 import {
   plainTextLengthBeforePos,
   pmPosFromPlainTextOffset,
-} from "@/lib/editor/tiptapPlainTextOffset";
-import type { BuilderRepeatContext } from "@/types/template-commands";
+} from "@/lib/editor/editorTiptapPlainTextOffset";
+import type { BuilderRepeatContext } from "@/types/templateStateAndCommands";
 import type { JSONContent } from "@tiptap/core";
 
 const EDITOR_BLOCK_SEPARATOR = "\n";
@@ -30,7 +30,7 @@ function mapPlainTextOffsetToPmPos(
   return pmPosFromPlainTextOffset(ed, textOffset, EDITOR_BLOCK_SEPARATOR);
 }
 
-export interface TemplateBuilderRef {
+export interface BuilderTemplateEditorRef {
   getText: () => string;
   getTipTapJSON: () => JSONContent;
   getPlainTextCursorOffset: () => number;
@@ -45,7 +45,7 @@ export interface RepeatAttributeOption {
   nestedAttributes: string[];
 }
 
-interface TemplateBuilderProps {
+interface BuilderTemplateEditorProps {
   repeatAttributeOptions: RepeatAttributeOption[];
   currentRepeatContext: BuilderRepeatContext | null;
   onInsertForBlock: (parentName: string, nestedAttributes: string[]) => void;
@@ -58,9 +58,9 @@ interface TemplateBuilderProps {
   initialDocJson?: JSONContent | null;
 }
 
-export const TemplateBuilder = forwardRef<
-  TemplateBuilderRef,
-  TemplateBuilderProps
+export const BuilderTemplateEditor = forwardRef<
+  BuilderTemplateEditorRef,
+  BuilderTemplateEditorProps
 >(
   (
     {
@@ -460,4 +460,4 @@ export const TemplateBuilder = forwardRef<
   },
 );
 
-TemplateBuilder.displayName = "TemplateBuilder";
+BuilderTemplateEditor.displayName = "BuilderTemplateEditor";

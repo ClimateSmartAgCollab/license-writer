@@ -6,23 +6,26 @@ import {
   extractDetailedAttributes,
   extractFormAttributeOrder,
   type AttributeInfo,
-} from "@/lib/utils";
+} from "@/lib/oca/ocaPackageAttributes";
 import { TbArrowLeft, TbCopy, TbDownload } from "react-icons/tb";
 import { Button } from "@/components/ui/button";
 import { AttributeDetailsModal } from "@/components/AttributeDetailsModal";
 import { AttributeListSidebar } from "@/components/AttributeListSidebar";
-import { TemplateEditor, type TemplateEditorRef } from "@/components/TemplateEditor";
 import {
-  TemplateBuilder,
+  AdvancedTemplateEditor,
+  type AdvancedTemplateEditorRef,
+} from "@/components/AdvancedTemplateEditor";
+import {
+  BuilderTemplateEditor,
   type RepeatAttributeOption,
-  type TemplateBuilderRef,
-} from "@/components/TemplateBuilder";
+  type BuilderTemplateEditorRef,
+} from "@/components/BuilderTemplateEditor";
 import { getBuilderVariableSnippet } from "@/lib/template/builderAdapter";
 import {
   builderPlainChunkToJinja,
   jinjaPlainChunkToBuilder,
   mapTipTapJsonTextNodes,
-} from "@/lib/editor/tiptapJsonViewTransform";
+} from "@/lib/editor/editorTiptapBuilderJinjaJson";
 
 function AttributesPage() {
   const {
@@ -36,8 +39,8 @@ function AttributesPage() {
     dispatchTemplateCommand,
   } = useApp();
   const navigate = useNavigate();
-  const editorRef = useRef<TemplateEditorRef>(null);
-  const builderRef = useRef<TemplateBuilderRef>(null);
+  const editorRef = useRef<AdvancedTemplateEditorRef>(null);
+  const builderRef = useRef<BuilderTemplateEditorRef>(null);
   const pendingPlainInsertRef = useRef<{ at: number; text: string } | null>(null);
   const [selectedAttribute, setSelectedAttribute] = useState<AttributeInfo | null>(null);
   const [mode, setMode] = useState<"builder" | "advanced">("builder");
@@ -330,7 +333,7 @@ function AttributesPage() {
 
         {/* Main Editor Area */}
         {mode === "builder" ? (
-          <TemplateBuilder
+          <BuilderTemplateEditor
             ref={builderRef}
             repeatAttributeOptions={repeatAttributeOptions}
             currentRepeatContext={builderRepeatContext}
@@ -356,7 +359,7 @@ function AttributesPage() {
             initialDocJson={mode === "builder" ? editorSwitchSeed : null}
           />
         ) : (
-          <TemplateEditor
+          <AdvancedTemplateEditor
             ref={editorRef}
             initialContent={jinjaText}
             onContentChange={(text) => {

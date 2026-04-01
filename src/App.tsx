@@ -8,8 +8,8 @@ import {
 } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Header from "@/components/common/Header";
-import LicenseFileUpload from "@/features/license/LicenseFileUpload";
-import TemplateFileUpload from "@/features/template/TemplateFileUpload";
+import OCAPackageUpload from "@/features/oca/OCAPackageUpload";
+import InitialTemplateUpload from "@/features/template/InitialTemplateUpload";
 import {
   initialTemplateState,
   templateReducer,
@@ -19,7 +19,7 @@ import type { OCAPackage } from "@/types/oca";
 import type {
   BuilderRepeatContext,
   TemplateCommand,
-} from "@/types/template-commands";
+} from "@/types/templateStateAndCommands";
 import "./App.css";
 
 
@@ -105,8 +105,8 @@ function HomePage() {
     <>
       <Header />
       <main className="p-4 lg:p-12 flex flex-col gap-6 lg:gap-10">
-        <LicenseFileUpload />
-        <TemplateFileUpload />
+        <OCAPackageUpload />
+        <InitialTemplateUpload />
       </main>
     </>
   );

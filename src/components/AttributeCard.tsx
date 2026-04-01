@@ -1,5 +1,5 @@
 import { TbInfoCircle } from "react-icons/tb";
-import { type AttributeInfo, isReferenceType } from "@/lib/utils";
+import { type AttributeInfo, isReferenceType } from "@/lib/oca/ocaPackageAttributes";
 
 interface AttributeCardProps {
   attribute: AttributeInfo;

@@ -2,8 +2,8 @@ import type {
   BuilderProjection,
   BuilderTemplateAdapter,
   InsertVariableInput,
-} from "@/types/template-adapters";
-import type { BuilderRepeatContext } from "@/types/template-commands";
+} from "@/types/templateAdapterInterfaces";
+import type { BuilderRepeatContext } from "@/types/templateStateAndCommands";
 import type { TemplateDocument, TemplateNode } from "@/types/template-ast";
 import { jinjaAdapter } from "@/lib/template/jinjaAdapter";
 
