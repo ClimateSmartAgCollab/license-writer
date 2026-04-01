@@ -116,7 +116,7 @@ function OCAPackageUpload() {
         uploadIcon={<TbUpload />}
         description="Upload your questionnaire to populate the list of attributes that can be used in the license (OCA Package)"
         onFileSelect={handleFileSelect}
-        accept=".json,.oca"
+        accept=".json"
         selectedFileName={
           (file || hasExistingData) && !error && !isProcessing ? file?.name || undefined : undefined
         }
