@@ -224,8 +224,11 @@ function AttributesPage() {
               <TbArrowLeft className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="text-lg font-semibold">Template Editor</h1>
-              <p className="text-sm opacity-90">Insert attributes to build your Jinja template.</p>
+              <h1 className="text-lg font-semibold">Schema-assisted template</h1>
+              <p className="text-sm opacity-90">
+                Upload an OCA package on the home page, then return here to insert fields from your
+                schema.
+              </p>
             </div>
           </div>
         </div>
@@ -259,8 +262,10 @@ function AttributesPage() {
             <TbArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-lg font-semibold">Template Editor</h1>
-            <p className="text-sm opacity-90">Insert attributes to build your Jinja template.</p>
+            <h1 className="text-lg font-semibold">Schema-assisted template</h1>
+            <p className="text-sm opacity-90">
+              Insert attributes from your OCA package to build your Jinja template.
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">

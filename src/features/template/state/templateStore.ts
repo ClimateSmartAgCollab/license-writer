@@ -111,6 +111,9 @@ export const templateReducer = (
       }
       return withDerivedViews(state, builderAdapter.parse(command.payload.text));
     }
+    case "reset_template": {
+      return { ...initialTemplateState };
+    }
     default: {
       return state;
     }

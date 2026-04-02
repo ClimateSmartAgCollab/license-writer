@@ -18,7 +18,13 @@ function OCAPackageUpload() {
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [schemaLevels, setSchemaLevels] = useState<number>(0);
-  const { attributes, rawJsonData, setAttributes, setRawJsonData } = useApp();
+  const {
+    attributes,
+    rawJsonData,
+    setAttributes,
+    setRawJsonData,
+    dispatchTemplateCommand,
+  } = useApp();
   const navigate = useNavigate();
 
   const hasExistingData = attributes.length > 0 || rawJsonData !== null;
@@ -74,6 +80,7 @@ function OCAPackageUpload() {
 
       setAttributes(extractedAttributes);
       setRawJsonData(ocaPackage);
+      dispatchTemplateCommand({ type: "reset_template" });
 
       console.log("OCA package processed successfully:", {
         fileName: selectedFile.name,
@@ -143,7 +150,7 @@ function OCAPackageUpload() {
       {(file || hasExistingData) && !error && !isProcessing && (
         <div className="flex justify-center">
           <Button
-            onClick={() => navigate("/attributes")}
+            onClick={() => navigate("/attributes", { replace: true })}
             className="bg-[var(--drt-green)] text-white hover:bg-[var(--drt-green-dark)] px-6 py-2"
           >
             <span>Next</span>

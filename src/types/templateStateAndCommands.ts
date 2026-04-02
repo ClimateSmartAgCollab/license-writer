@@ -53,12 +53,18 @@ export interface SetFromBuilderTextCommand {
   };
 }
 
+/** Clears template state to empty; used when switching from template-only to OCA workflow. */
+export interface ResetTemplateCommand {
+  type: "reset_template";
+}
+
 export type TemplateCommand =
   | InsertVariableCommand
   | InsertForBlockCommand
   | SetBuilderContextCommand
   | SetFromAdvancedTextCommand
-  | SetFromBuilderTextCommand;
+  | SetFromBuilderTextCommand
+  | ResetTemplateCommand;
 
 export interface TemplateState {
   document: TemplateDocument;

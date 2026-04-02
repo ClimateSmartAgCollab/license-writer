@@ -56,7 +56,9 @@ function AppProvider({ children }: { children: ReactNode }) {
   const processedInsertNoncesRef = useRef<Set<string>>(new Set());
 
   const dispatchTemplateCommand = useCallback((command: TemplateCommand) => {
-    if (
+    if (command.type === "reset_template") {
+      processedInsertNoncesRef.current.clear();
+    } else if (
       command.type === "insert_variable" ||
       command.type === "insert_for_block"
     ) {

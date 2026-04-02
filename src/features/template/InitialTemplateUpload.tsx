@@ -9,7 +9,7 @@ function InitialTemplateUpload() {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const { dispatchTemplateCommand } = useApp();
+  const { dispatchTemplateCommand, setAttributes, setRawJsonData } = useApp();
   const navigate = useNavigate();
 
   const readFileAsText = (inputFile: File): Promise<string> =>
@@ -45,10 +45,9 @@ function InitialTemplateUpload() {
         throw new Error("Template file is empty. Please upload a file with template content.");
       }
 
-      dispatchTemplateCommand({
-        type: "set_builder_context",
-        payload: { context: null },
-      });
+      setAttributes([]);
+      setRawJsonData(null);
+      dispatchTemplateCommand({ type: "reset_template" });
       dispatchTemplateCommand({
         type: "set_from_advanced_text",
         payload: { text: normalizedText },
@@ -95,7 +94,7 @@ function InitialTemplateUpload() {
       {file && !error && !isProcessing && (
         <div className="flex flex-col items-center gap-2">
           <Button
-            onClick={() => navigate("/template-editor")}
+            onClick={() => navigate("/template-editor", { replace: true })}
             className="bg-[var(--drt-green)] text-white hover:bg-[var(--drt-green-dark)] px-6 py-2"
           >
             <span>Next</span>
