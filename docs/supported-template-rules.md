@@ -43,6 +43,11 @@ Jinja-style delimiters used in this project follow the default pattern:
   - `{% else %}`
   - `{% endif %}`
 
+### Mode behavior for conditionals
+
+- **Advanced mode:** conditionals are fully supported and editable in Jinja text.
+- **Builder mode:** conditionals are preserved as raw Jinja and treated as read-only (`builder_limited`) because Builder does not yet provide native conditional editing syntax.
+
 ## Unsupported Constructs (Explicit Non-Goals)
 
 The following features are intentionally unsupported in this version:
