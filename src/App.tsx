@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HashRouter, Routes, Route } from "react-router-dom";
 import Header from "@/components/common/Header";
 import OCAPackageUpload from "@/features/oca/OCAPackageUpload";
 import InitialTemplateUpload from "@/features/template/InitialTemplateUpload";
@@ -139,13 +139,13 @@ function HomePage() {
 function App() {
   return (
     <AppProvider>
-      <BrowserRouter>
+      <HashRouter>
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/attributes" element={<AttributesPage />} />
           <Route path="/template-editor" element={<TemplateEditorPage />} />
         </Routes>
-      </BrowserRouter>
+      </HashRouter>
     </AppProvider>
   );
 }

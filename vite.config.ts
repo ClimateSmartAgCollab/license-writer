@@ -7,6 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: "/license_writer/",
   plugins: [react()],
   resolve: {
     alias: {
