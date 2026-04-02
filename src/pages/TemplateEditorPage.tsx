@@ -24,7 +24,6 @@ function TemplateEditorPage() {
     builderText,
     templateWarnings,
     isBuilderLimited,
-    builderWarning,
     builderRepeatContext,
     dispatchTemplateCommand,
   } = useApp();
@@ -167,12 +166,6 @@ function TemplateEditorPage() {
           ))}
         </div>
       )}
-      {mode === "builder" && isBuilderLimited && builderWarning && (
-        <div className="bg-amber-100 border-b border-amber-300 px-4 py-2 text-amber-950 text-sm">
-          {builderWarning}
-        </div>
-      )}
-
       <div className="flex flex-1 overflow-hidden min-h-0">
         {mode === "builder" ? (
           <BuilderTemplateEditor

@@ -175,8 +175,9 @@ const print = (doc: TemplateDocument): BuilderProjection => {
     text: jinjaAdapter.print(doc),
     warning: {
       code: "builder_limited",
-      message: "Builder limited/read-only for this template.",
-      detail: "This template includes constructs the Builder cannot safely edit.",
+      message: "Builder is read-only for this template.",
+      detail:
+        "Some template syntax is not supported in Builder mode yet. Switch to Advanced mode to edit it, then simplify to plain variables/loops/ifs to re-enable Builder editing.",
     },
   };
 };
