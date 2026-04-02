@@ -31,16 +31,34 @@ describe("jinjaAdapter conditionals", () => {
     expect(warnings).toEqual([]);
   });
 
-  it("marks builder projection limited when conditionals are present", () => {
-    const template = "{% if holder.active %}{{ holder.name }}{% endif %}";
+  it("prints Builder-native conditional syntax without limitation", () => {
+    const template = "{% if holder.active %}{{ holder.name }}{% else %}Unknown{% endif %}";
     const parsed = jinjaAdapter.parse(template);
     const projection = builderAdapter.print(parsed);
 
-    expect(projection.isLimited).toBe(true);
-    expect(projection.text).toBe(template);
-    if (!projection.isLimited) {
-      throw new Error("Expected limited builder projection");
-    }
-    expect(projection.warning.code).toBe("builder_limited");
+    expect(projection.isLimited).toBe(false);
+    expect(projection.text).toContain("[If: holder.active]");
+    expect(projection.text).toContain("[Else]");
+    expect(projection.text).toContain("[End if]");
+  });
+
+  it("parses Builder-native conditional syntax back to Jinja", () => {
+    const builderText = [
+      "[If: holder.active]",
+      "[holder.name]",
+      "[Else if: holder.pending]",
+      "Pending",
+      "[Else]",
+      "Unknown",
+      "[End if]",
+    ].join("\n");
+
+    const parsed = builderAdapter.parse(builderText);
+    const jinja = jinjaAdapter.print(parsed);
+    expect(jinja).toContain("{% if holder.active %}");
+    expect(jinja).toContain("{{ holder.name }}");
+    expect(jinja).toContain("{% elif holder.pending %}");
+    expect(jinja).toContain("{% else %}");
+    expect(jinja).toContain("{% endif %}");
   });
 });

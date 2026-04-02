@@ -12,6 +12,10 @@ import { jinjaAdapter } from "@/lib/template/jinjaAdapter";
 const SAFE_BUILDER_PATH_REGEX = /^[A-Za-z_][\w]*(\.[A-Za-z0-9_]+)*$/;
 const BUILDER_FOR_OPEN_REGEX = /\[Start group of attributes:\s*([^\]]+)\]/g;
 const BUILDER_FOR_CLOSE_REGEX = /\[End group of attributes\]/g;
+const BUILDER_IF_OPEN_REGEX = /\[If:\s*([^\]]+)\]/g;
+const BUILDER_ELIF_OPEN_REGEX = /\[Else if:\s*([^\]]+)\]/g;
+const BUILDER_ELSE_REGEX = /\[Else\]/g;
+const BUILDER_END_IF_REGEX = /\[End if\]/g;
 const BUILDER_VARIABLE_REGEX = /\[([^\]]+)\]/g;
 
 const BuilderSyntax = {
@@ -19,6 +23,10 @@ const BuilderSyntax = {
   itemField: (field: string) => `[item.${field}]`,
   forBlockOpen: (parentName: string) => `[Start group of attributes: ${parentName}]`,
   forBlockClose: () => "[End group of attributes]",
+  ifOpen: (condition: string) => `[If: ${condition}]`,
+  elifOpen: (condition: string) => `[Else if: ${condition}]`,
+  elseOpen: () => "[Else]",
+  ifClose: () => "[End if]",
   forBlock: (parentName: string) =>
     [
       BuilderSyntax.forBlockOpen(parentName),
@@ -39,6 +47,14 @@ const parse = (text: string): TemplateDocument => {
       return `{% for item in ${parentName.trim()} %}`;
     })
     .replace(BUILDER_FOR_CLOSE_REGEX, "{% endfor %}")
+    .replace(BUILDER_IF_OPEN_REGEX, (_full, condition: string) => {
+      return `{% if ${condition.trim()} %}`;
+    })
+    .replace(BUILDER_ELIF_OPEN_REGEX, (_full, condition: string) => {
+      return `{% elif ${condition.trim()} %}`;
+    })
+    .replace(BUILDER_ELSE_REGEX, "{% else %}")
+    .replace(BUILDER_END_IF_REGEX, "{% endif %}")
     .replace(BUILDER_VARIABLE_REGEX, (_full, expr: string) => `{{ ${expr.trim()} }}`);
 
   return jinjaAdapter.parse(jinjaText);
@@ -100,11 +116,48 @@ const printNodesForBuilder = (
     }
 
     if (node.kind === "if_block") {
-      isLimited = true;
-      const rawConditional = node.branches
-        .map((branch) => `${branch.rawOpen}${jinjaAdapter.print({ nodes: branch.body })}`)
-        .join("");
-      chunks.push(`${rawConditional}${node.rawClose}`);
+      const branchChunks: string[] = [];
+      let branchIndex = 0;
+
+      for (const branch of node.branches) {
+        const bodyProjection = printNodesForBuilder(branch.body, loopVarContext);
+        if (bodyProjection.isLimited) {
+          isLimited = true;
+        }
+
+        const bodyText = bodyProjection.text;
+        const newlineAfterOpen = bodyText.startsWith("\n") ? "" : "\n";
+        const newlineBeforeClose = bodyText.endsWith("\n") ? "" : "\n";
+
+        if (branch.condition && branch.condition.includes("]")) {
+          isLimited = true;
+          branchChunks.push(
+            `${branch.rawOpen}${newlineAfterOpen}${bodyText}${newlineBeforeClose}`,
+          );
+          branchIndex += 1;
+          continue;
+        }
+
+        const printableCondition =
+          branch.condition && loopVarContext
+            ? branch.condition.replace(
+                new RegExp(`\\b${loopVarContext.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\.`, "g"),
+                "item.",
+              )
+            : branch.condition;
+        const openToken =
+          printableCondition === null
+            ? BuilderSyntax.elseOpen()
+            : branchIndex === 0
+              ? BuilderSyntax.ifOpen(printableCondition)
+              : BuilderSyntax.elifOpen(printableCondition);
+        branchChunks.push(`${openToken}${newlineAfterOpen}${bodyText}${newlineBeforeClose}`);
+        branchIndex += 1;
+      }
+
+      const closeToken = isLimited ? node.rawClose : BuilderSyntax.ifClose();
+      chunks.push(`${branchChunks.join("")}${closeToken}`);
+      continue;
     }
   }
 
