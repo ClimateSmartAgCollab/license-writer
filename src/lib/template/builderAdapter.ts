@@ -96,6 +96,15 @@ const printNodesForBuilder = (
       const newlineBeforeClose = bodyText.endsWith("\n") ? "" : "\n";
       const block = `${BuilderSyntax.forBlockOpen(node.iterable)}${newlineAfterOpen}${bodyText}${newlineBeforeClose}${BuilderSyntax.forBlockClose()}`;
       chunks.push(block);
+      continue;
+    }
+
+    if (node.kind === "if_block") {
+      isLimited = true;
+      const rawConditional = node.branches
+        .map((branch) => `${branch.rawOpen}${jinjaAdapter.print({ nodes: branch.body })}`)
+        .join("");
+      chunks.push(`${rawConditional}${node.rawClose}`);
     }
   }
 

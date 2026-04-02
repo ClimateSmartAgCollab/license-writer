@@ -1,6 +1,7 @@
 import type { JinjaTemplateAdapter, InsertVariableInput } from "@/types/templateAdapterInterfaces";
 import type {
   TemplateDocument,
+  TemplateIfBlockNode,
   TemplateForBlockNode,
   TemplateNode,
   TemplateWarning,
@@ -22,6 +23,12 @@ const printNodes = (nodes: TemplateNode[]): string =>
       if (node.kind === "text") return node.raw;
       if (node.kind === "unsupported") return node.raw;
       if (node.kind === "variable") return node.raw || `{{ ${node.expression} }}`;
+      if (node.kind === "if_block") {
+        const branchText = node.branches
+          .map((branch) => `${branch.rawOpen}${printNodes(branch.body)}`)
+          .join("");
+        return `${branchText}${node.rawClose}`;
+      }
       return `${node.rawOpen}${printNodes(node.body)}${node.rawClose}`;
     })
     .join("");
@@ -31,14 +38,31 @@ const print = (doc: TemplateDocument): string => printNodes(doc.nodes);
 const parse = (text: string): TemplateDocument => {
   const tokenRegex = /({{[\s\S]*?}}|{%[\s\S]*?%})/g;
   const root: TemplateNode[] = [];
-  const stack: TemplateForBlockNode[] = [];
+  type BlockFrame =
+    | {
+        type: "for";
+        node: TemplateForBlockNode;
+      }
+    | {
+        type: "if";
+        node: TemplateIfBlockNode;
+        activeBranch: number;
+      };
+  const stack: BlockFrame[] = [];
 
-  const appendNode = (node: TemplateNode) => {
-    if (stack.length > 0) {
-      stack[stack.length - 1].body.push(node);
+  const appendNode = (node: TemplateNode, targetFrame?: BlockFrame) => {
+    const frame = targetFrame ?? stack[stack.length - 1];
+    if (!frame) {
+      root.push(node);
       return;
     }
-    root.push(node);
+
+    if (frame.type === "for") {
+      frame.node.body.push(node);
+      return;
+    }
+
+    frame.node.branches[frame.activeBranch].body.push(node);
   };
 
   let lastIndex = 0;
@@ -79,12 +103,15 @@ const parse = (text: string): TemplateDocument => {
         });
       } else {
         stack.push({
-          kind: "for_block",
-          loopVar: forMatch[1],
-          iterable: forMatch[2].trim(),
-          body: [],
-          rawOpen: token,
-          rawClose: "{% endfor %}",
+          type: "for",
+          node: {
+            kind: "for_block",
+            loopVar: forMatch[1],
+            iterable: forMatch[2].trim(),
+            body: [],
+            rawOpen: token,
+            rawClose: "{% endfor %}",
+          },
         });
       }
       lastIndex = tokenRegex.lastIndex;
@@ -93,15 +120,107 @@ const parse = (text: string): TemplateDocument => {
 
     if (tag === "endfor") {
       const block = stack.pop();
-      if (!block) {
+      if (!block || block.type !== "for") {
         appendNode({
           kind: "unsupported",
           raw: token,
           reason: "Unmatched endfor tag.",
         });
       } else {
-        block.rawClose = token;
-        appendNode(block);
+        block.node.rawClose = token;
+        appendNode(block.node);
+      }
+      lastIndex = tokenRegex.lastIndex;
+      continue;
+    }
+
+    if (tag === "if") {
+      const condition = blockContent.replace(/^if\s+/, "").trim();
+      if (!condition) {
+        appendNode({
+          kind: "unsupported",
+          raw: token,
+          reason: "Malformed if tag.",
+        });
+      } else {
+        stack.push({
+          type: "if",
+          activeBranch: 0,
+          node: {
+            kind: "if_block",
+            branches: [{ condition, body: [], rawOpen: token }],
+            rawClose: "{% endif %}",
+          },
+        });
+      }
+      lastIndex = tokenRegex.lastIndex;
+      continue;
+    }
+
+    if (tag === "elif") {
+      const frame = stack[stack.length - 1];
+      if (!frame || frame.type !== "if") {
+        appendNode({
+          kind: "unsupported",
+          raw: token,
+          reason: "Unmatched elif tag.",
+        });
+      } else if (frame.node.branches.some((branch) => branch.condition === null)) {
+        appendNode({
+          kind: "unsupported",
+          raw: token,
+          reason: "Elif after else in if block.",
+        });
+      } else {
+        const condition = blockContent.replace(/^elif\s+/, "").trim();
+        if (!condition) {
+          appendNode({
+            kind: "unsupported",
+            raw: token,
+            reason: "Malformed elif tag.",
+          });
+        } else {
+          frame.node.branches.push({ condition, body: [], rawOpen: token });
+          frame.activeBranch = frame.node.branches.length - 1;
+        }
+      }
+      lastIndex = tokenRegex.lastIndex;
+      continue;
+    }
+
+    if (tag === "else") {
+      const frame = stack[stack.length - 1];
+      if (!frame || frame.type !== "if") {
+        appendNode({
+          kind: "unsupported",
+          raw: token,
+          reason: "Unmatched else tag.",
+        });
+      } else if (frame.node.branches.some((branch) => branch.condition === null)) {
+        appendNode({
+          kind: "unsupported",
+          raw: token,
+          reason: "Duplicate else tag in if block.",
+        });
+      } else {
+        frame.node.branches.push({ condition: null, body: [], rawOpen: token });
+        frame.activeBranch = frame.node.branches.length - 1;
+      }
+      lastIndex = tokenRegex.lastIndex;
+      continue;
+    }
+
+    if (tag === "endif") {
+      const block = stack.pop();
+      if (!block || block.type !== "if") {
+        appendNode({
+          kind: "unsupported",
+          raw: token,
+          reason: "Unmatched endif tag.",
+        });
+      } else {
+        block.node.rawClose = token;
+        appendNode(block.node);
       }
       lastIndex = tokenRegex.lastIndex;
       continue;
@@ -133,11 +252,22 @@ const parse = (text: string): TemplateDocument => {
 
   while (stack.length > 0) {
     const unfinished = stack.pop()!;
-    appendNode({
-      kind: "unsupported",
-      raw: `${unfinished.rawOpen}${printNodes(unfinished.body)}`,
-      reason: "Unclosed for block.",
-    });
+    if (unfinished.type === "for") {
+      appendNode({
+        kind: "unsupported",
+        raw: `${unfinished.node.rawOpen}${printNodes(unfinished.node.body)}`,
+        reason: "Unclosed for block.",
+      });
+    } else {
+      const partialText = unfinished.node.branches
+        .map((branch) => `${branch.rawOpen}${printNodes(branch.body)}`)
+        .join("");
+      appendNode({
+        kind: "unsupported",
+        raw: partialText,
+        reason: "Unclosed if block.",
+      });
+    }
   }
 
   return { nodes: root };
@@ -153,6 +283,10 @@ const findWarnings = (doc: TemplateDocument): TemplateWarning[] => {
         unsupportedReasons.add(node.reason);
       } else if (node.kind === "for_block") {
         walk(node.body);
+      } else if (node.kind === "if_block") {
+        for (const branch of node.branches) {
+          walk(branch.body);
+        }
       }
     }
   };

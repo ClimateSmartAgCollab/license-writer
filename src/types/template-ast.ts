@@ -1,4 +1,4 @@
-export type TemplateNodeKind = "text" | "variable" | "for_block" | "unsupported";
+export type TemplateNodeKind = "text" | "variable" | "for_block" | "if_block" | "unsupported";
 
 export interface TemplateTextNode {
   kind: "text";
@@ -20,6 +20,18 @@ export interface TemplateForBlockNode {
   rawClose: string;
 }
 
+export interface TemplateIfBranch {
+  condition: string | null;
+  body: TemplateNode[];
+  rawOpen: string;
+}
+
+export interface TemplateIfBlockNode {
+  kind: "if_block";
+  branches: TemplateIfBranch[];
+  rawClose: string;
+}
+
 export interface TemplateUnsupportedNode {
   kind: "unsupported";
   raw: string;
@@ -30,6 +42,7 @@ export type TemplateNode =
   | TemplateTextNode
   | TemplateVariableNode
   | TemplateForBlockNode
+  | TemplateIfBlockNode
   | TemplateUnsupportedNode;
 
 export interface TemplateDocument {
