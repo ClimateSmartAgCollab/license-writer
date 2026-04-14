@@ -17,9 +17,13 @@ import {
   jinjaPlainChunkToBuilder,
   mapTipTapJsonTextNodes,
 } from "@/lib/editor/editorTiptapBuilderJinjaJson";
+import { SaidJsonExportBlock } from "@/components/common/SaidJsonExportBlock";
+import { saidJsonExportRemountKey } from "@/lib/said/licenseTemplateRecord";
 
 function TemplateEditorPage() {
   const {
+    rawJsonData,
+    attributes,
     jinjaText,
     builderText,
     templateWarnings,
@@ -115,7 +119,8 @@ function TemplateEditorPage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col items-end gap-1 shrink-0 max-w-full min-w-0">
+          <div className="flex flex-wrap items-center justify-end gap-2">
           <Button
             onClick={switchToBuilder}
             className={`px-4 py-2 ${
@@ -157,6 +162,13 @@ function TemplateEditorPage() {
             <TbCopy className="w-4 h-4" />
             <span>Copy</span>
           </Button>
+          </div>
+          <SaidJsonExportBlock
+            key={saidJsonExportRemountKey(jinjaText, rawJsonData?.d ?? null, attributes)}
+            jinjaText={jinjaText}
+            ocaPackageD={rawJsonData?.d ?? null}
+            attributeNames={attributes}
+          />
         </div>
       </div>
       {templateWarnings.length > 0 && (
