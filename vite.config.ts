@@ -9,15 +9,22 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // https://vite.dev/config/
 export default defineConfig({
   base: "/license-writer/",
-  plugins: [react(), nodePolyfills({ include: ['buffer', 'stream', 'util', 'assert', 'events'] })],
+  plugins: [
+    react(),
+    nodePolyfills({
+      include: ['buffer', 'process', 'stream', 'util'],
+      globals: {
+        Buffer: true,
+        process: true,
+      },
+    }),
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
   },
-  // Pre-bundle SAID + canonical JSON deps (saidify pulls buffer);
-  // avoids flaky dev-server resolution.
   optimizeDeps: {
-    include: ['saidify', 'json-canonicalize', 'buffer'],
+    include: ['saidify'],
   },
 })

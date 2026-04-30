@@ -1,78 +1,114 @@
-import { canonicalize } from "json-canonicalize";
 import { saidify, verify } from "saidify";
-import type { LicenseTemplateRecord, LicenseTemplateRecordInput } from "@/types/licenseTemplateRecord";
-import {
-  LICENSE_TEMPLATE_RECORD_TYPE,
-  LICENSE_TEMPLATE_RECORD_VERSION,
-  LICENSE_TEMPLATE_SAID_LABEL,
+import { canonicalize } from "json-canonicalize";
+import type {
+  LicenseTemplateRecord,
+  LicenseTemplateRecordInput,
 } from "@/types/licenseTemplateRecord";
 
-export {
-  LICENSE_TEMPLATE_RECORD_TYPE,
-  LICENSE_TEMPLATE_RECORD_VERSION,
-  LICENSE_TEMPLATE_SAID_LABEL,
-} from "@/types/licenseTemplateRecord";
 
-const SAID_LABEL = LICENSE_TEMPLATE_SAID_LABEL;
-
-function normalizeJinja(text: string): string {
-  return text.replace(/\r\n/g, "\n");
-}
-
-/**
- * Builds the object to pass into `saidify` (empty `d` placeholder).
- * `attribute_names` is sorted so the same logical set yields the same SAID regardless of source order.
- */
-export function buildLicenseTemplateRecord(
-  input: LicenseTemplateRecordInput,
-): LicenseTemplateRecord {
-  const uniqueNames = Array.from(new Set(input.attributeNames.filter((n) => n.length > 0)));
-  uniqueNames.sort((a, b) => a.localeCompare(b));
+export function buildLicenseTemplateRecord(params: {
+  jinjaText: string;
+  ocaPackageD: string | null;
+  attributeNames: string[];
+}): LicenseTemplateRecordInput {
+  const sortedAttributeNames = [...params.attributeNames].sort();
 
   return {
     d: "",
-    record_type: LICENSE_TEMPLATE_RECORD_TYPE,
-    record_version: LICENSE_TEMPLATE_RECORD_VERSION,
-    jinja: normalizeJinja(input.jinja),
-    oca_package_d: input.ocaPackageD,
-    attribute_names: uniqueNames,
+    record_type: "license_template/1",
+    record_version: 1,
+    jinja: params.jinjaText,
+    oca_package_d: params.ocaPackageD,
+    attribute_names: sortedAttributeNames,
   };
 }
 
+
 export function saidifyRecord(
-  record: LicenseTemplateRecord,
-  label: string,
-): [string, LicenseTemplateRecord] {
-  if (label !== SAID_LABEL) {
-    throw new Error(`SAID label must be "${SAID_LABEL}", got: ${label}`);
+  input: LicenseTemplateRecordInput,
+): LicenseTemplateRecord {
+  if (!("d" in input)) {
+    throw new Error("saidifyRecord: record is missing required `d` field.");
   }
-  if (!Object.prototype.hasOwnProperty.call(record, SAID_LABEL)) {
-    throw new Error(`Record must include a "${SAID_LABEL}" key before saidify`);
-  }
-  if (record.d !== "") {
-    throw new Error(`Record "${SAID_LABEL}" must be an empty string before saidify`);
+  if (input.d !== "") {
+    throw new Error(
+      `saidifyRecord: record.d must be "" before SAIDify, got ${JSON.stringify(input.d)}.`,
+    );
   }
 
-  const [said, sad] = saidify(record, label);
-  return [said, sad as LicenseTemplateRecord];
+  const canonicalString = canonicalize(input);
+  const canonicalInput = JSON.parse(canonicalString) as Record<string, unknown>;
+
+  const [said, sad] = saidify(canonicalInput, "d");
+
+  if (typeof said !== "string" || said.length === 0) {
+    throw new Error("saidifyRecord: saidify() returned an empty digest.");
+  }
+
+  return sad as unknown as LicenseTemplateRecord;
 }
 
-export function verifyRecord(sad: LicenseTemplateRecord, label: string = SAID_LABEL): boolean {
-  if (label !== SAID_LABEL) {
+
+export function verifyRecord(sad: LicenseTemplateRecord): boolean {
+  if (typeof sad.d !== "string" || sad.d.length === 0) {
     return false;
   }
-  const digest = sad.d;
-  if (typeof digest !== "string" || digest.length === 0) {
-    return false;
+
+  return verify(
+    sad as unknown as Record<string, unknown>,
+    sad.d,
+    "d",
+  );
+}
+
+
+export function toSaidJsonString(sad: LicenseTemplateRecord): string {
+  return JSON.stringify(sad);
+}
+
+export function detectAndParseSaidJson(
+  rawText: string,
+):
+  | { valid: true; record: LicenseTemplateRecord }
+  | { valid: false; reason: string } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawText);
+  } catch {
+    return { valid: false, reason: "not JSON" };
   }
-  return verify(sad as unknown as Record<string, unknown>, digest, label);
+
+  if (
+    typeof parsed !== "object" ||
+    parsed === null ||
+    Array.isArray(parsed)
+  ) {
+    return { valid: false, reason: "missing required fields" };
+  }
+
+  const candidate = parsed as Record<string, unknown>;
+  if (
+    typeof candidate.d !== "string" ||
+    candidate.d.length === 0 ||
+    typeof candidate.jinja !== "string" ||
+    typeof candidate.record_type !== "string"
+  ) {
+    return { valid: false, reason: "missing required fields" };
+  }
+
+  const record = candidate as unknown as LicenseTemplateRecord;
+  if (!verifyRecord(record)) {
+    return { valid: false, reason: "SAID verification failed" };
+  }
+
+  return { valid: true, record };
 }
 
-export function toCanonicalJsonString(value: unknown): string {
-  return canonicalize(value);
-}
-
-export function downloadTextFile(filename: string, content: string, mimeType: string): void {
+export function downloadTextFile(
+  filename: string,
+  content: string,
+  mimeType: string,
+): void {
   let url: string | null = null;
   try {
     const blob = new Blob([content], { type: mimeType });
@@ -88,46 +124,4 @@ export function downloadTextFile(filename: string, content: string, mimeType: st
       URL.revokeObjectURL(url);
     }
   }
-}
-
-function saidJsonFilename(said: string): string {
-  const dateStamp = new Date().toISOString().slice(0, 10);
-  const short = said.slice(0, 8).replace(/[^A-Za-z0-9_-]/g, "");
-  return `license-template-${dateStamp}-${short || "said"}.json`;
-}
-
-export interface SaidExportResult {
-  said: string;
-  sad: LicenseTemplateRecord;
-  canonicalJson: string;
-}
-
-
-export function buildSaidifiedLicenseTemplateRecord(
-  input: LicenseTemplateRecordInput,
-): SaidExportResult {
-  const record = buildLicenseTemplateRecord(input);
-  const [said, sad] = saidifyRecord(record, SAID_LABEL);
-  if (!verifyRecord(sad, SAID_LABEL)) {
-    throw new Error("SAID verification failed after saidify; export aborted.");
-  }
-  return {
-    said,
-    sad,
-    canonicalJson: toCanonicalJsonString(sad),
-  };
-}
-
-export function downloadSaidifiedLicenseTemplateJson(input: LicenseTemplateRecordInput): SaidExportResult {
-  const result = buildSaidifiedLicenseTemplateRecord(input);
-  downloadTextFile(saidJsonFilename(result.said), result.canonicalJson, "application/json");
-  return result;
-}
-
-export function saidJsonExportRemountKey(
-  jinjaText: string,
-  ocaPackageD: string | null,
-  attributeNames: readonly string[],
-): string {
-  return `${ocaPackageD ?? ""}\x1e${attributeNames.join("\x1e")}\x1e${jinjaText}`;
 }

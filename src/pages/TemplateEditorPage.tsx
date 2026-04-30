@@ -17,13 +17,16 @@ import {
   jinjaPlainChunkToBuilder,
   mapTipTapJsonTextNodes,
 } from "@/lib/editor/editorTiptapBuilderJinjaJson";
-import { SaidJsonExportBlock } from "@/components/common/SaidJsonExportBlock";
-import { saidJsonExportRemountKey } from "@/lib/said/licenseTemplateRecord";
+import {
+  buildLicenseTemplateRecord,
+  saidifyRecord,
+  verifyRecord,
+  toSaidJsonString,
+  downloadTextFile,
+} from "@/lib/said/licenseTemplateRecord";
 
 function TemplateEditorPage() {
   const {
-    rawJsonData,
-    attributes,
     jinjaText,
     builderText,
     templateWarnings,
@@ -38,6 +41,7 @@ function TemplateEditorPage() {
   const [mode, setMode] = useState<"builder" | "advanced">("builder");
   const [editorSwitchSeed, setEditorSwitchSeed] = useState<JSONContent | null>(null);
   const [cursorByMode, setCursorByMode] = useState({ builder: 0, advanced: 0 });
+  const [saidError, setSaidError] = useState<string | null>(null);
 
   useEffect(() => {
     pendingPlainInsertRef.current = null;
@@ -80,6 +84,38 @@ function TemplateEditorPage() {
     getActiveEditorRef()?.handleDownloadMarkdown();
   }, [getActiveEditorRef]);
 
+  const handleDownloadSaidJson = useCallback(() => {
+    try {
+      setSaidError(null);
+      const record = buildLicenseTemplateRecord({
+        jinjaText,
+        // TemplateEditorPage has no OCA package — unlike AttributesPage,
+        // ocaPackageD is always null and attributeNames is always empty.
+        // The exported SAID identifies a template-only artifact with no
+        // cryptographic link to any OCA.
+        ocaPackageD: null,
+        attributeNames: [],
+      });
+      const sad = saidifyRecord(record);
+      if (!verifyRecord(sad)) {
+        setSaidError(
+          "SAID verification failed after compute. Export aborted — the digest does not match its own content.",
+        );
+        return;
+      }
+      const json = toSaidJsonString(sad);
+      downloadTextFile(
+        "license_template.said.json",
+        json,
+        "application/json",
+      );
+    } catch (err) {
+      setSaidError(
+        `SAID export failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }, [jinjaText]);
+
   const handleInsertForBlock = useCallback(
     (parentName: string, nestedAttributes: string[]) => {
       const cursorForInsert =
@@ -119,8 +155,7 @@ function TemplateEditorPage() {
             </p>
           </div>
         </div>
-        <div className="flex flex-col items-end gap-1 shrink-0 max-w-full min-w-0">
-          <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex items-center gap-2">
           <Button
             onClick={switchToBuilder}
             className={`px-4 py-2 ${
@@ -156,19 +191,19 @@ function TemplateEditorPage() {
             <span>Download Markdown</span>
           </Button>
           <Button
+            onClick={handleDownloadSaidJson}
+            className="bg-white text-[var(--drt-green)] hover:bg-gray-100 px-4 py-2"
+          >
+            <TbDownload className="w-4 h-4" />
+            <span>Download SAID JSON</span>
+          </Button>
+          <Button
             onClick={handleCopy}
             className="bg-white text-[var(--drt-green)] hover:bg-gray-100 px-4 py-2"
           >
             <TbCopy className="w-4 h-4" />
             <span>Copy</span>
           </Button>
-          </div>
-          <SaidJsonExportBlock
-            key={saidJsonExportRemountKey(jinjaText, rawJsonData?.d ?? null, attributes)}
-            jinjaText={jinjaText}
-            ocaPackageD={rawJsonData?.d ?? null}
-            attributeNames={attributes}
-          />
         </div>
       </div>
       {templateWarnings.length > 0 && (
@@ -176,6 +211,17 @@ function TemplateEditorPage() {
           {templateWarnings.map((warning) => (
             <p key={warning}>{warning}</p>
           ))}
+        </div>
+      )}
+      {saidError && (
+        <div className="bg-red-50 border-b border-red-200 px-4 py-2 text-red-900 text-sm flex items-center justify-between">
+          <span>{saidError}</span>
+          <button
+            onClick={() => setSaidError(null)}
+            className="text-red-700 hover:text-red-900 underline text-xs ml-4"
+          >
+            Dismiss
+          </button>
         </div>
       )}
       <div className="flex flex-1 overflow-hidden min-h-0">

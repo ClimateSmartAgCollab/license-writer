@@ -4,6 +4,20 @@ import { useApp } from "@/App";
 import FileUpload from "@/components/common/FileUpload";
 import { TbArrowRight, TbLicense, TbUpload } from "react-icons/tb";
 import { Button } from "@/components/ui/button";
+import { detectAndParseSaidJson } from "@/lib/said/licenseTemplateRecord";
+
+function messageForSaidParseFailure(reason: string): string {
+  switch (reason) {
+    case "not JSON":
+      return "The selected .json file could not be parsed. Please ensure it is a valid SAID JSON file produced by License Writer.";
+    case "missing required fields":
+      return "The selected JSON file does not appear to be a SAID license template. Required fields (d, jinja, record_type) are missing.";
+    case "SAID verification failed":
+      return "SAID verification failed. The file's d does not match its content — the file may be corrupted or tampered with. Refusing to load.";
+    default:
+      return `Could not load SAID JSON file: ${reason}.`;
+  }
+}
 
 function InitialTemplateUpload() {
   const [file, setFile] = useState<File | null>(null);
@@ -39,19 +53,34 @@ function InitialTemplateUpload() {
     setIsProcessing(true);
     try {
       const rawText = await readFileAsText(selectedFile);
-      const normalizedText = rawText.replace(/\r\n/g, "\n");
+      const isJsonExtension = selectedFile.name.toLowerCase().endsWith(".json");
 
-      if (!normalizedText.trim()) {
-        throw new Error("Template file is empty. Please upload a file with template content.");
+      if (isJsonExtension) {
+        const result = detectAndParseSaidJson(rawText);
+        if (!result.valid) {
+          throw new Error(messageForSaidParseFailure(result.reason));
+        }
+        const normalizedJinja = result.record.jinja.replace(/\r\n/g, "\n");
+        setAttributes([]);
+        setRawJsonData(null);
+        dispatchTemplateCommand({ type: "reset_template" });
+        dispatchTemplateCommand({
+          type: "set_from_advanced_text",
+          payload: { text: normalizedJinja },
+        });
+      } else {
+        const normalizedText = rawText.replace(/\r\n/g, "\n");
+        if (!normalizedText.trim()) {
+          throw new Error("Template file is empty. Please upload a file with template content.");
+        }
+        setAttributes([]);
+        setRawJsonData(null);
+        dispatchTemplateCommand({ type: "reset_template" });
+        dispatchTemplateCommand({
+          type: "set_from_advanced_text",
+          payload: { text: normalizedText },
+        });
       }
-
-      setAttributes([]);
-      setRawJsonData(null);
-      dispatchTemplateCommand({ type: "reset_template" });
-      dispatchTemplateCommand({
-        type: "set_from_advanced_text",
-        payload: { text: normalizedText },
-      });
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to process template file.";
@@ -69,7 +98,7 @@ function InitialTemplateUpload() {
         uploadIcon={<TbUpload />}
         description="Upload an existing template source file to continue editing it in Builder/Advanced mode."
         onFileSelect={handleFileSelect}
-        accept=".txt,.md,.template,.jinja,.j2"
+        accept=".txt,.md,.template,.jinja,.j2,.json"
         selectedFileName={file?.name}
         selectedFileInfo={
           file && !error && !isProcessing
