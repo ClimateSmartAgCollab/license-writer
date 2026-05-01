@@ -105,7 +105,7 @@ function TemplateEditorPage() {
       }
       const json = toSaidJsonString(sad);
       downloadTextFile(
-        "license_template.said.json",
+        "license_template_said.json",
         json,
         "application/json",
       );
