@@ -11,15 +11,14 @@ export function buildLicenseTemplateRecord(params: {
   ocaPackageD: string | null;
   attributeNames: string[];
 }): LicenseTemplateRecordInput {
-  const sortedAttributeNames = [...params.attributeNames].sort();
+  // const sortedAttributeNames = [...params.attributeNames].sort();
 
   return {
     d: "",
-    record_type: "license_template/1",
-    record_version: 1,
+    type: "license_template/1.0",
     jinja: params.jinjaText,
     oca_package_d: params.ocaPackageD,
-    attribute_names: sortedAttributeNames,
+    // attribute_names: sortedAttributeNames,
   };
 }
 
@@ -91,7 +90,7 @@ export function detectAndParseSaidJson(
     typeof candidate.d !== "string" ||
     candidate.d.length === 0 ||
     typeof candidate.jinja !== "string" ||
-    typeof candidate.record_type !== "string"
+    typeof candidate.type !== "string"
   ) {
     return { valid: false, reason: "missing required fields" };
   }

@@ -11,7 +11,7 @@ function messageForSaidParseFailure(reason: string): string {
     case "not JSON":
       return "The selected .json file could not be parsed. Please ensure it is a valid SAID JSON file produced by License Writer.";
     case "missing required fields":
-      return "The selected JSON file does not appear to be a SAID license template. Required fields (d, jinja, record_type) are missing.";
+      return "The selected JSON file does not appear to be a SAID license template. Required fields (d, jinja, type) are missing.";
     case "SAID verification failed":
       return "SAID verification failed. The file's d does not match its content — the file may be corrupted or tampered with. Refusing to load.";
     default:

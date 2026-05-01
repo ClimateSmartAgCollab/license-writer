@@ -1,9 +1,8 @@
 export interface LicenseTemplateRecordBase {
-  record_type: "license_template/1";
-  record_version: 1;
+  type: "license_template/1.0";
   jinja: string;
   oca_package_d: string | null;
-  attribute_names: string[];
+  // attribute_names: string[];
 }
 
 /** Record shape BEFORE saidify(). `d` is the empty-string placeholder. */
