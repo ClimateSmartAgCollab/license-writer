@@ -1,77 +1,55 @@
-# React + TypeScript + Vite
+# License Writer
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Web UI for authoring Jinja license templates for the DRT project. Upload an OCA package for schema-guided editing, or start from an existing template. Export plain text, Markdown, or a SAID-signed `license_template/1.0` JSON record.
 
-## Project Docs
+**Live:** [climatesmartagcollab.github.io/license-writer](https://climatesmartagcollab.github.io/license-writer/) (deploys from `main`)
 
-- [Supported Template Rules](docs/supported-template-rules.md)
+## Workflows
 
-Currently, two official plugins are available:
+| Entry point | Route | What you get |
+|-------------|-------|--------------|
+| OCA package JSON | `/attributes` | Attribute sidebar, insert variables and `for` blocks from schema |
+| License template file | `/template-editor` | Template-only editor, no OCA required |
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Both paths share the same dual-mode editor:
 
-## React Compiler
+- **Builder** — bracket tokens (`[If: …]`, `[For: …]`) projected to Jinja
+- **Advanced** — raw Jinja (`{{ }}`, `{% for %}`, `{% if %}`)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Mode switches preserve content via a shared plain-text AST. Unsupported Jinja (macros, includes, inheritance) is rejected or downgrades Builder to read-only with warnings.
 
-## Expanding the ESLint configuration
+## Stack
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+React 19 · TypeScript · Vite · TipTap · Tailwind · React Router (hash) · [saidify](https://www.npmjs.com/package/saidify)
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Template logic lives in adapters (`jinjaAdapter`, `builderAdapter`) behind a command reducer in `templateStore`. SAID export canonicalizes the record, computes digest `d`, and self-verifies before download.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Commands
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev      # local dev server
+npm run build    # typecheck + production bundle
+npm run test     # vitest
+npm run lint
+npm run preview  # serve dist locally
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Node 20+. Base path is `/license-writer/` for GitHub Pages (`vite.config.ts`).
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Docs
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- [Supported template rules](docs/supported-template-rules.md) — whitelist, mode behavior, module map
+
+## Layout
+
+```
+src/
+  features/oca/          OCA package upload
+  features/template/     Initial template upload + reducer store
+  pages/                 AttributesPage, TemplateEditorPage
+  lib/template/          Jinja + Builder adapters
+  lib/editor/            TipTap ↔ plain-text sync
+  lib/said/              SAID record build / verify / export
+  components/            Editors, attribute UI
 ```
