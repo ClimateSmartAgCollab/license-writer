@@ -32,6 +32,7 @@ function TemplateEditorPage() {
     templateWarnings,
     isBuilderLimited,
     builderRepeatContext,
+    templateImportSaidVerified,
     dispatchTemplateCommand,
   } = useApp();
   const navigate = useNavigate();
@@ -206,6 +207,14 @@ function TemplateEditorPage() {
           </Button>
         </div>
       </div>
+      {templateImportSaidVerified === false && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-amber-900 text-sm">
+          <p>
+            This template was imported without a valid SAID. Its contents may
+            not match the digest in the original file.
+          </p>
+        </div>
+      )}
       {templateWarnings.length > 0 && (
         <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-amber-900 text-sm">
           {templateWarnings.map((warning) => (

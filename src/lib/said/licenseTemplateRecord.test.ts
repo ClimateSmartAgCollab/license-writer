@@ -5,6 +5,7 @@ import {
   verifyRecord,
   toSaidJsonString,
   detectAndParseSaidJson,
+  resolveSaidJsonUpload,
 } from "./licenseTemplateRecord";
 import type {
   LicenseTemplateRecord,
@@ -87,12 +88,13 @@ describe("licenseTemplateRecord", () => {
 
     expect(result.valid).toBe(true);
     if (result.valid) {
+      expect(result.saidVerified).toBe(true);
       expect(result.record.jinja).toBe("Round-trip me {{ name }}");
       expect(result.record.d).toBe(sad.d);
     }
   });
 
-  it("detectAndParseSaidJson rejects a tampered SAID JSON file with a verification reason", () => {
+  it("detectAndParseSaidJson returns unverified record for a tampered SAID JSON file", () => {
     const sad = saidifyRecord(
       buildLicenseTemplateRecord({
         jinjaText: "Original content",
@@ -105,10 +107,64 @@ describe("licenseTemplateRecord", () => {
 
     const result = detectAndParseSaidJson(tamperedBytes);
 
+    expect(result.valid).toBe(true);
+    if (result.valid) {
+      expect(result.saidVerified).toBe(false);
+      expect(result.record.jinja).toBe("Altered content");
+    }
+  });
+
+  it("detectAndParseSaidJson rejects structurally invalid JSON missing jinja", () => {
+    const invalidBytes = JSON.stringify({
+      d: "EXAMPLE_DIGEST",
+      type: "license_template/1.0",
+    });
+
+    const result = detectAndParseSaidJson(invalidBytes);
+
     expect(result.valid).toBe(false);
     if (!result.valid) {
-      expect(result.reason).toMatch(/verification/);
+      expect(result.reason).toBe("missing required fields");
     }
+  });
+
+  describe("resolveSaidJsonUpload", () => {
+    it("returns reject for structural parse failure", () => {
+      expect(
+        resolveSaidJsonUpload({ valid: false, reason: "not JSON" }),
+      ).toBe("reject");
+    });
+
+    it("returns load when SAID verification passed", () => {
+      const sad = saidifyRecord(
+        buildLicenseTemplateRecord({
+          jinjaText: "Verified",
+          ocaPackageD: null,
+          attributeNames: [],
+        }),
+      );
+      const result = detectAndParseSaidJson(toSaidJsonString(sad));
+      expect(result.valid).toBe(true);
+      if (result.valid) {
+        expect(resolveSaidJsonUpload(result)).toBe("load");
+      }
+    });
+
+    it("returns confirm when SAID verification failed", () => {
+      const sad = saidifyRecord(
+        buildLicenseTemplateRecord({
+          jinjaText: "Original",
+          ocaPackageD: null,
+          attributeNames: [],
+        }),
+      );
+      const tampered = { ...sad, jinja: "Altered" };
+      const result = detectAndParseSaidJson(JSON.stringify(tampered));
+      expect(result.valid).toBe(true);
+      if (result.valid) {
+        expect(resolveSaidJsonUpload(result)).toBe("confirm");
+      }
+    });
   });
 
   it("produces stable, parseable, verifiable on-disk JSON", () => {

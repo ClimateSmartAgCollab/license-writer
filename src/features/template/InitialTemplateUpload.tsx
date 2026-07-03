@@ -4,7 +4,10 @@ import { useApp } from "@/App";
 import FileUpload from "@/components/common/FileUpload";
 import { TbArrowRight, TbLicense, TbUpload } from "react-icons/tb";
 import { Button } from "@/components/ui/button";
-import { detectAndParseSaidJson } from "@/lib/said/licenseTemplateRecord";
+import {
+  detectAndParseSaidJson,
+  resolveSaidJsonUpload,
+} from "@/lib/said/licenseTemplateRecord";
 
 function messageForSaidParseFailure(reason: string): string {
   switch (reason) {
@@ -12,8 +15,6 @@ function messageForSaidParseFailure(reason: string): string {
       return "The selected .json file could not be parsed. Please ensure it is a valid SAID JSON file produced by License Writer.";
     case "missing required fields":
       return "The selected JSON file does not appear to be a SAID license template. Required fields (d, jinja, type) are missing.";
-    case "SAID verification failed":
-      return "SAID verification failed. The file's d does not match its content — the file may be corrupted or tampered with. Refusing to load.";
     default:
       return `Could not load SAID JSON file: ${reason}.`;
   }
@@ -23,7 +24,15 @@ function InitialTemplateUpload() {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const { dispatchTemplateCommand, setAttributes, setRawJsonData } = useApp();
+  const [pendingConfirmJinja, setPendingConfirmJinja] = useState<string | null>(
+    null,
+  );
+  const {
+    dispatchTemplateCommand,
+    setAttributes,
+    setRawJsonData,
+    setTemplateImportSaidVerified,
+  } = useApp();
   const navigate = useNavigate();
 
   const readFileAsText = (inputFile: File): Promise<string> =>
@@ -42,9 +51,21 @@ function InitialTemplateUpload() {
       reader.readAsText(inputFile);
     });
 
+  const loadTemplateJinja = (normalizedJinja: string, saidVerified: boolean) => {
+    setAttributes([]);
+    setRawJsonData(null);
+    dispatchTemplateCommand({ type: "reset_template" });
+    setTemplateImportSaidVerified(saidVerified);
+    dispatchTemplateCommand({
+      type: "set_from_advanced_text",
+      payload: { text: normalizedJinja },
+    });
+  };
+
   const handleFileSelect = async (selectedFile: File | null) => {
     setFile(selectedFile);
     setError(null);
+    setPendingConfirmJinja(null);
 
     if (!selectedFile) {
       return;
@@ -61,13 +82,11 @@ function InitialTemplateUpload() {
           throw new Error(messageForSaidParseFailure(result.reason));
         }
         const normalizedJinja = result.record.jinja.replace(/\r\n/g, "\n");
-        setAttributes([]);
-        setRawJsonData(null);
-        dispatchTemplateCommand({ type: "reset_template" });
-        dispatchTemplateCommand({
-          type: "set_from_advanced_text",
-          payload: { text: normalizedJinja },
-        });
+        if (resolveSaidJsonUpload(result) === "confirm") {
+          setPendingConfirmJinja(normalizedJinja);
+          return;
+        }
+        loadTemplateJinja(normalizedJinja, result.saidVerified);
       } else {
         const normalizedText = rawText.replace(/\r\n/g, "\n");
         if (!normalizedText.trim()) {
@@ -86,9 +105,25 @@ function InitialTemplateUpload() {
         err instanceof Error ? err.message : "Failed to process template file.";
       setError(errorMessage);
       setFile(null);
+    } finally {
+      setIsProcessing(false);
     }
-    setIsProcessing(false);
   };
+
+  const handleConfirmLoad = () => {
+    if (!pendingConfirmJinja) {
+      return;
+    }
+    loadTemplateJinja(pendingConfirmJinja, false);
+    setPendingConfirmJinja(null);
+  };
+
+  const handleCancelConfirm = () => {
+    setPendingConfirmJinja(null);
+    setFile(null);
+  };
+
+  const isLoaded = file && !error && !isProcessing && !pendingConfirmJinja;
 
   return (
     <div className="flex flex-col gap-4">
@@ -101,7 +136,7 @@ function InitialTemplateUpload() {
         accept=".txt,.md,.template,.jinja,.j2,.json"
         selectedFileName={file?.name}
         selectedFileInfo={
-          file && !error && !isProcessing
+          isLoaded
             ? {
                 successMessage: "Template loaded successfully.",
                 nextStepMessage:
@@ -120,7 +155,26 @@ function InitialTemplateUpload() {
           <p className="text-sm text-red-800">{error}</p>
         </div>
       )}
-      {file && !error && !isProcessing && (
+      {pendingConfirmJinja && file && !error && !isProcessing && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex flex-col gap-3">
+          <p className="text-sm text-amber-900">
+            This template failed SAID verification. It may have been edited or
+            corrupted outside License Writer. Load it anyway?
+          </p>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleConfirmLoad}
+              className="bg-[var(--drt-green)] text-white hover:bg-[var(--drt-green-dark)]"
+            >
+              Load anyway
+            </Button>
+            <Button onClick={handleCancelConfirm} variant="outline">
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+      {isLoaded && (
         <div className="flex flex-col items-center gap-2">
           <Button
             onClick={() => navigate("/template-editor", { replace: true })}

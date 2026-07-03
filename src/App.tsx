@@ -33,8 +33,10 @@ interface AppContextType {
   isBuilderLimited: boolean;
   builderWarning: string | null;
   builderRepeatContext: BuilderRepeatContext | null;
+  templateImportSaidVerified: boolean | null;
   setAttributes: (attributes: string[]) => void;
   setRawJsonData: (data: OCAPackage | null) => void;
+  setTemplateImportSaidVerified: (value: boolean | null) => void;
   dispatchTemplateCommand: (command: TemplateCommand) => void;
 }
 
@@ -53,10 +55,14 @@ function AppProvider({ children }: { children: ReactNode }) {
   const [attributes, setAttributes] = useState<string[]>([]);
   const [rawJsonData, setRawJsonData] = useState<OCAPackage | null>(null);
   const [templateState, setTemplateState] = useState(initialTemplateState);
+  const [templateImportSaidVerified, setTemplateImportSaidVerified] = useState<
+    boolean | null
+  >(null);
   const processedInsertNoncesRef = useRef<Set<string>>(new Set());
 
   const dispatchTemplateCommand = useCallback((command: TemplateCommand) => {
     if (command.type === "reset_template") {
+      setTemplateImportSaidVerified(null);
       processedInsertNoncesRef.current.clear();
     } else if (
       command.type === "insert_variable" ||
@@ -96,8 +102,10 @@ function AppProvider({ children }: { children: ReactNode }) {
         : templateState.builderWarning.message
       : null,
     builderRepeatContext: templateState.builderContext,
+    templateImportSaidVerified,
     setAttributes,
     setRawJsonData,
+    setTemplateImportSaidVerified,
     dispatchTemplateCommand,
   };
 

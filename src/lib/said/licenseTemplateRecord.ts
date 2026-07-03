@@ -3,6 +3,7 @@ import { canonicalize } from "json-canonicalize";
 import type {
   LicenseTemplateRecord,
   LicenseTemplateRecordInput,
+  SaidJsonParseResult,
 } from "@/types/licenseTemplateRecord";
 
 
@@ -65,11 +66,21 @@ export function toSaidJsonString(sad: LicenseTemplateRecord): string {
   return JSON.stringify(sad);
 }
 
+export function resolveSaidJsonUpload(
+  result: SaidJsonParseResult,
+): "load" | "confirm" | "reject" {
+  if (!result.valid) {
+    return "reject";
+  }
+  if (result.saidVerified) {
+    return "load";
+  }
+  return "confirm";
+}
+
 export function detectAndParseSaidJson(
   rawText: string,
-):
-  | { valid: true; record: LicenseTemplateRecord }
-  | { valid: false; reason: string } {
+): SaidJsonParseResult {
   let parsed: unknown;
   try {
     parsed = JSON.parse(rawText);
@@ -96,11 +107,9 @@ export function detectAndParseSaidJson(
   }
 
   const record = candidate as unknown as LicenseTemplateRecord;
-  if (!verifyRecord(record)) {
-    return { valid: false, reason: "SAID verification failed" };
-  }
+  const saidVerified = verifyRecord(record);
 
-  return { valid: true, record };
+  return { valid: true, record, saidVerified };
 }
 
 export function downloadTextFile(

@@ -14,3 +14,7 @@ export interface LicenseTemplateRecordInput extends LicenseTemplateRecordBase {
 export interface LicenseTemplateRecord extends LicenseTemplateRecordBase {
   d: string;
 }
+
+export type SaidJsonParseResult =
+  | { valid: true; record: LicenseTemplateRecord; saidVerified: boolean }
+  | { valid: false; reason: string };
