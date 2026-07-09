@@ -10,7 +10,7 @@ export interface LicenseTemplateRecordInput extends LicenseTemplateRecordBase {
   d: "";
 }
 
-/** Record shape AFTER saidify(). `d` is a computed digest string. */
+/** Record shape AFTER saidify(). `d` is `urn:said:<SAID>` (53 chars). */
 export interface LicenseTemplateRecord extends LicenseTemplateRecordBase {
   d: string;
 }
