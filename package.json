@@ -27,7 +27,7 @@
     "react-dropzone": "^14.3.8",
     "react-icons": "^5.5.0",
     "react-router-dom": "^7.9.6",
-    "saidify": "^0.2.2",
+    "saidify": "1.1.1",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
     "zustand": "^5.0.8"

@@ -1,4 +1,4 @@
-import { saidify, verify } from "saidify";
+import { saidifyUrn, verify, verifyUrn } from "saidify";
 import { canonicalize } from "json-canonicalize";
 import type {
   LicenseTemplateRecord,
@@ -6,6 +6,18 @@ import type {
   SaidJsonParseResult,
 } from "@/types/licenseTemplateRecord";
 
+const URN_SAID_PREFIX = "urn:said:";
+
+export function isUrnSaidDigest(d: string): boolean {
+  return d.startsWith(URN_SAID_PREFIX);
+}
+
+function canonicalizeRecordInput(
+  input: LicenseTemplateRecordInput,
+): Record<string, unknown> {
+  const canonicalString = canonicalize(input);
+  return JSON.parse(canonicalString) as Record<string, unknown>;
+}
 
 export function buildLicenseTemplateRecord(params: {
   jinjaText: string;
@@ -36,13 +48,12 @@ export function saidifyRecord(
     );
   }
 
-  const canonicalString = canonicalize(input);
-  const canonicalInput = JSON.parse(canonicalString) as Record<string, unknown>;
+  const canonicalInput = canonicalizeRecordInput(input);
 
-  const [said, sad] = saidify(canonicalInput, "d");
+  const [urn, sad] = saidifyUrn(canonicalInput, "d");
 
-  if (typeof said !== "string" || said.length === 0) {
-    throw new Error("saidifyRecord: saidify() returned an empty digest.");
+  if (typeof urn !== "string" || !isUrnSaidDigest(urn)) {
+    throw new Error("saidifyRecord: saidifyUrn() returned an invalid urn SAID.");
   }
 
   return sad as unknown as LicenseTemplateRecord;
@@ -54,11 +65,13 @@ export function verifyRecord(sad: LicenseTemplateRecord): boolean {
     return false;
   }
 
-  return verify(
-    sad as unknown as Record<string, unknown>,
-    sad.d,
-    "d",
-  );
+  const record = sad as unknown as Record<string, unknown>;
+
+  if (isUrnSaidDigest(sad.d)) {
+    return verifyUrn(record, sad.d, "d");
+  }
+
+  return verify(record, sad.d, "d");
 }
 
 
